@@ -84,7 +84,7 @@
 <div class="row" style="margin-top:12px"><button class="btn primary" onclick="calculateRoute()">Calcular rota</button></div>
 <div id="routeResult" style="margin-top:12px"></div>
 </div>
-<div class="card"><div id="routeMap" class="map">O Google Maps aparecerá aqui após configurar a chave.</div></div>
+<div class="card"><div id="routeMap" class="map">Mapa da operação: São Gonçalo, RJ. Para navegar, use “Abrir rota no Google Maps” na tela Motorista.</div></div>
 </section>
 
 <section id="driver" class="page">
@@ -105,7 +105,8 @@
 <section id="settings" class="page">
 <div class="title"><div><h1>Configurações</h1><p>Base da van e margens de segurança.</p></div></div>
 <div class="card grid">
-<label class="wide">Endereço da garagem<input id="baseAddress" value="Marambaia, São Gonçalo, RJ"></label>
+<label class="wide">Endereço da garagem<input id="baseAddress" value="Marambaia, São Gonçalo, RJ, Brasil"></label>
+<label class="wide">Cidade padrão das rotas<input id="defaultCity" value="São Gonçalo, RJ, Brasil"></label>
 <label>Margem antes da escola (min)<input id="arrivalBuffer" type="number" value="10"></label>
 <label>Margem imprevistos (min)<input id="safetyBuffer" type="number" value="10"></label>
 <label>Tempo embarque/criança (min)<input id="boarding" type="number" value="2"></label>
@@ -143,7 +144,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 const $=s=>document.querySelector(s); const qsa=s=>[...document.querySelectorAll(s)];
-let data=JSON.parse(localStorage.getItem('rotaData')||'null')||{students:[],drivers:[],changes:[],settings:{base:'Marambaia, São Gonçalo, RJ',arrival:10,safety:10,boarding:2},route:null,gps:null}; if(!data.drivers)data.drivers=[];
+let data=JSON.parse(localStorage.getItem('rotaData')||'null')||{students:[],drivers:[],changes:[],settings:{base:'Marambaia, São Gonçalo, RJ, Brasil',city:'São Gonçalo, RJ, Brasil',arrival:10,safety:10,boarding:2},route:null,gps:null}; if(!data.drivers)data.drivers=[];
+if(!data.settings)data.settings={}; if(!data.settings.base)data.settings.base='Marambaia, São Gonçalo, RJ, Brasil'; if(!data.settings.city)data.settings.city='São Gonçalo, RJ, Brasil'; if(data.settings.base==='Marambaia, São Gonçalo, RJ')data.settings.base='Marambaia, São Gonçalo, RJ, Brasil';
 let watchId=null;
 
 function persist(){localStorage.setItem('rotaData',JSON.stringify(data));render();window.dispatchEvent(new CustomEvent('rota-data-changed',{detail:data}))}
@@ -181,19 +183,20 @@ const schools=[...new Set(data.students.map(s=>s.school))];$('#routeSchool').inn
 const type=$('#routeType').value;const times=[...new Set(data.students.map(s=>type==='ida'?s.entry:effective(s).exit))].sort();$('#routeTime').innerHTML=times.map(x=>'<option>'+x+'</option>').join('');
 $('#routeSummary').innerHTML=data.route?routeHtml(data.route):'Nenhuma rota calculada.';
 $('#driverStops').innerHTML=data.route?(data.route.stops.map((s,i)=>'<div class="item"><div><b>'+(i+1)+'. '+s.name+'</b><small>'+s.address+'</small></div><span class="pill">Pendente</span></div>').join('')):'Nenhuma rota publicada.';
-$('#baseAddress').value=data.settings.base;$('#arrivalBuffer').value=data.settings.arrival;$('#safetyBuffer').value=data.settings.safety;$('#boarding').value=data.settings.boarding;
+$('#baseAddress').value=data.settings.base;$('#defaultCity').value=data.settings.city||'São Gonçalo, RJ, Brasil';$('#arrivalBuffer').value=data.settings.arrival;$('#safetyBuffer').value=data.settings.safety;$('#boarding').value=data.settings.boarding;
 if(data.gps){$('#liveInfo').textContent='Última posição: '+new Date(data.gps.time).toLocaleString('pt-BR')+' • Lat '+data.gps.lat.toFixed(5)+' • Lng '+data.gps.lng.toFixed(5);$('#liveMap').textContent='🚐 Van em '+data.gps.lat.toFixed(5)+', '+data.gps.lng.toFixed(5)}
 fillStudentSelect(); const ad=data.drivers.find(d=>String(d.id)===$('#activeDriver').value); $('#activeVan').value=ad?.vehicle||''; updateLiveMap();
 }
 function routeHtml(r){return '<div class="routebox"><b>'+r.type.toUpperCase()+' • '+r.school+' • '+r.time+'</b><p>Motorista: <b>'+(r.driverName||'não definido')+'</b> • '+(r.vehicle||'')+'</p><p>Saída recomendada: <b>'+r.start+'</b> • '+r.stops.length+' crianças • margem total '+r.margin+' min</p><div class="stack">'+r.stops.map((s,i)=>'<div>'+(i+1)+'. '+s.name+' — '+s.address+'</div>').join('')+'</div></div>'}
 function calculateRoute(){const type=$('#routeType').value,time=$('#routeTime').value,school=$('#routeSchool').value;if(!time||!school){$('#routeResult').innerHTML='<div class="alert">Cadastre crianças primeiro.</div>';return}let list=data.students.map(effective).filter(s=>!s.absent&&s.school===school&&(type==='ida'?s.entry:s.exit)===time);if(!list.length)return;list.sort((a,b)=>a.address.localeCompare(b.address));const estTravel=Math.max(20,list.length*7),boarding=list.length*(+data.settings.boarding||0),margin=(+data.settings.arrival||0)+(+data.settings.safety||0)+boarding;const [h,m]=time.split(':').map(Number);let total=h*60+m-estTravel-margin;if(type==='volta')total=h*60+m-(+data.settings.safety||0);while(total<0)total+=1440;const start=String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0');const did=$('#routeDriver').value;const drv=data.drivers.find(d=>String(d.id)===did);data.route={type,time,school,start,margin,driverId:did||null,driverName:drv?.name||'',vehicle:drv?.vehicle||'',origin:type==='ida'?data.settings.base:list[0].schoolAddress,destination:type==='ida'?list[0].schoolAddress:data.settings.base,stops:list.map(s=>({name:s.name,address:s.address}))};persist();$('#routeResult').innerHTML=routeHtml(data.route)}
-function saveSettings(){data.settings={base:$('#baseAddress').value,arrival:+$('#arrivalBuffer').value||0,safety:+$('#safetyBuffer').value||0,boarding:+$('#boarding').value||0};persist()}
+function saveSettings(){data.settings={base:$('#baseAddress').value.trim()||'Marambaia, São Gonçalo, RJ, Brasil',city:$('#defaultCity').value.trim()||'São Gonçalo, RJ, Brasil',arrival:+$('#arrivalBuffer').value||0,safety:+$('#safetyBuffer').value||0,boarding:+$('#boarding').value||0};persist()}
 function startGps(){if(!navigator.geolocation){alert('GPS não disponível');return}$('#gpsStart').disabled=true;$('#gpsStop').disabled=false;watchId=navigator.geolocation.watchPosition(p=>{data.gps={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,time:Date.now(),driverId:$('#activeDriver').value||null};localStorage.setItem('rotaData',JSON.stringify(data));window.dispatchEvent(new CustomEvent('rota-gps-changed',{detail:data.gps}));$('#gpsText').textContent='GPS ativo • precisão aproximada '+Math.round(p.coords.accuracy)+' m';render()},e=>{alert(e.message)},{enableHighAccuracy:true,maximumAge:3000,timeout:15000})}
 function stopGps(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;$('#gpsStart').disabled=false;$('#gpsStop').disabled=true;$('#gpsText').textContent='GPS parado.'}
-function openGoogleMaps(){if(!data.route){alert('Calcule uma rota primeiro.');return}const wp=data.route.stops.map(s=>s.address).join('|');const u='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(data.route.origin)+'&destination='+encodeURIComponent(data.route.destination)+'&waypoints='+encodeURIComponent(wp)+'&travelmode=driving&dir_action=navigate';window.open(u,'_blank')}
+function mapAddress(addr){const a=(addr||'').trim();if(!a)return '';const low=a.toLowerCase();if(low.includes('são gonçalo')||low.includes('sao goncalo')||/\b(rj|rio de janeiro)\b/i.test(a))return a;return a+', '+(data.settings.city||'São Gonçalo, RJ, Brasil')}
+function openGoogleMaps(){if(!data.route){alert('Calcule uma rota primeiro.');return}const origin=mapAddress(data.route.origin),destination=mapAddress(data.route.destination),wp=data.route.stops.map(s=>mapAddress(s.address)).join('|');const u='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(destination)+'&waypoints='+encodeURIComponent(wp)+'&travelmode=driving&dir_action=navigate';window.open(u,'_blank')}
 $('#routeType').onchange=render; $('#activeDriver').onchange=()=>{const d=data.drivers.find(x=>String(x.id)===$('#activeDriver').value);$('#activeVan').value=d?.vehicle||''};
 let liveLeaflet=null,liveMarker=null;
-function updateLiveMap(){if(!window.L)return;const el=$('#liveMap');if(!liveLeaflet){liveLeaflet=L.map(el).setView([-22.9,-43.1],11);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(liveLeaflet)}if(data.gps){const ll=[data.gps.lat,data.gps.lng];if(!liveMarker)liveMarker=L.marker(ll).addTo(liveLeaflet).bindPopup('Van');else liveMarker.setLatLng(ll);liveLeaflet.setView(ll,16)}setTimeout(()=>liveLeaflet?.invalidateSize(),100)}
+function updateLiveMap(){if(!window.L)return;const el=$('#liveMap');if(!liveLeaflet){liveLeaflet=L.map(el).setView([-22.82694,-43.05389],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(liveLeaflet)}if(data.gps){const ll=[data.gps.lat,data.gps.lng];if(!liveMarker)liveMarker=L.marker(ll).addTo(liveLeaflet).bindPopup('Van');else liveMarker.setLatLng(ll);liveLeaflet.setView(ll,16)}setTimeout(()=>liveLeaflet?.invalidateSize(),100)}
 window.addEventListener('cloud-data',e=>{if(e.detail&&typeof e.detail==='object'){data=e.detail;if(!data.drivers)data.drivers=[];localStorage.setItem('rotaData',JSON.stringify(data));render()}});
 window.addEventListener('cloud-gps',e=>{if(e.detail){data.gps=e.detail;localStorage.setItem('rotaData',JSON.stringify(data));render()}});
 render();
