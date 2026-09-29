@@ -15,18 +15,22 @@
 
 <div id="setup" class="setup hidden">
 <div class="setupbox">
-<h1>Conectar Google Maps e Firebase</h1>
-<p>Quando você criar seus projetos, cole aqui as informações. O aplicativo guarda a configuração apenas neste aparelho.</p>
+<h1>Sincronização do Rota Escolar</h1>
+<p>O Firebase principal já está configurado. Esta tela serve para conferir a conexão e copiar/importar a mesma configuração em outro aparelho.</p>
 <div class="grid">
-<label class="wide">Chave Google Maps<input id="mapsKey" placeholder="AIza..."></label>
+<label class="wide">Chave Google Maps (opcional)<input id="mapsKey" placeholder="Não é necessária para abrir a rota no Google Maps"></label>
 <label>Firebase apiKey<input id="fbApiKey" placeholder="AIza..."></label>
 <label>Firebase authDomain<input id="fbAuth" placeholder="projeto.firebaseapp.com"></label>
 <label class="wide">Firebase databaseURL<input id="fbDb" placeholder="https://projeto-default-rtdb.firebaseio.com"></label>
 <label>Firebase projectId<input id="fbProject" placeholder="projeto"></label>
 <label>Firebase appId<input id="fbApp" placeholder="1:123:web:abc"></label><label class="wide">Código privado da empresa<input id="accessCode" placeholder="Será criado automaticamente se deixar vazio"></label>
 </div>
-<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveCloud()">Salvar configuração</button><button class="btn soft" onclick="closeSetup()">Continuar em demonstração</button></div>
-<p class="note">Não compartilhe senhas. Essas chaves devem ser restringidas no Google/Firebase antes de usar dados reais de crianças.</p>
+<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveCloud()">Salvar configuração</button><button class="btn soft" onclick="copyDeviceConfig()">Copiar para outro aparelho</button><button class="btn soft" onclick="closeSetup()">Fechar</button></div>
+<details style="margin-top:14px"><summary>Configurar o aparelho do motorista</summary>
+<label class="wide" style="margin-top:10px">Cole o código copiado do aparelho administrador<textarea id="deviceImport" rows="5" placeholder="Cole aqui o código de configuração"></textarea></label>
+<button class="btn primary" style="margin-top:10px" onclick="importDeviceConfig()">Importar e conectar</button>
+</details>
+<p class="note">Não compartilhe senhas. O código copiado contém a identificação privada desta operação e deve ser enviado somente ao aparelho autorizado do motorista.</p>
 </div></div>
 
 <div class="app">
@@ -144,10 +148,15 @@ let watchId=null;
 function persist(){localStorage.setItem('rotaData',JSON.stringify(data));render();window.dispatchEvent(new CustomEvent('rota-data-changed',{detail:data}))}
 function page(id){$$('.page').forEach(x=>x.classList.toggle('active',x.id===id));$$('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.p===id))}
 $$('#nav button').forEach(b=>b.onclick=()=>page(b.dataset.p));
-function openSetup(){$('#setup').classList.remove('hidden')} function closeSetup(){$('#setup').classList.add('hidden')}
+const DEFAULT_FIREBASE={apiKey:"AIzaSyD7VR4Dh8YjBOGHs9Y-MiB1MEDj0fvIcWs",authDomain:"fleet-passage-510100-u1.firebaseapp.com",databaseURL:"https://fleet-passage-510100-u1-default-rtdb.firebaseio.com/",projectId:"fleet-passage-510100-u1",storageBucket:"fleet-passage-510100-u1.firebasestorage.app",messagingSenderId:"737524414637",appId:"1:737524414637:web:949b1b68f303a837cfee24"};
 function randomCode(){return (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now()).replaceAll('-','')+Math.random().toString(36).slice(2)}
-function saveCloud(){const c={mapsKey:$('#mapsKey').value.trim(),accessCode:$('#accessCode').value.trim()||randomCode(),firebase:{apiKey:$('#fbApiKey').value.trim(),authDomain:$('#fbAuth').value.trim(),databaseURL:$('#fbDb').value.trim(),projectId:$('#fbProject').value.trim(),appId:$('#fbApp').value.trim()}};localStorage.setItem('rotaCloud',JSON.stringify(c));$('#status').textContent='Configuração salva — recarregue a página para conectar';closeSetup();alert('Configuração salva. Atualize a página para ativar a sincronização.')}
-function copyDeviceConfig(){const c=localStorage.getItem('rotaCloud');if(!c){openSetup();return}navigator.clipboard?.writeText(btoa(unescape(encodeURIComponent(c)))).then(()=>alert('Configuração copiada. Cole este código no outro aparelho.')).catch(()=>prompt('Copie este código:',btoa(unescape(encodeURIComponent(c)))))}
+function ensureCloudConfig(){let raw=localStorage.getItem('rotaCloud');if(raw)return JSON.parse(raw);const c={mapsKey:'',accessCode:randomCode(),firebase:{...DEFAULT_FIREBASE}};localStorage.setItem('rotaCloud',JSON.stringify(c));return c}
+function fillCloudForm(){const c=ensureCloudConfig();$('#mapsKey').value=c.mapsKey||'';$('#fbApiKey').value=c.firebase?.apiKey||'';$('#fbAuth').value=c.firebase?.authDomain||'';$('#fbDb').value=c.firebase?.databaseURL||'';$('#fbProject').value=c.firebase?.projectId||'';$('#fbApp').value=c.firebase?.appId||'';$('#accessCode').value=c.accessCode||''}
+function openSetup(){fillCloudForm();$('#setup').classList.remove('hidden')} function closeSetup(){$('#setup').classList.add('hidden')}
+function saveCloud(){const current=ensureCloudConfig();const c={mapsKey:$('#mapsKey').value.trim(),accessCode:$('#accessCode').value.trim()||current.accessCode||randomCode(),firebase:{...DEFAULT_FIREBASE,apiKey:$('#fbApiKey').value.trim()||DEFAULT_FIREBASE.apiKey,authDomain:$('#fbAuth').value.trim()||DEFAULT_FIREBASE.authDomain,databaseURL:$('#fbDb').value.trim()||DEFAULT_FIREBASE.databaseURL,projectId:$('#fbProject').value.trim()||DEFAULT_FIREBASE.projectId,appId:$('#fbApp').value.trim()||DEFAULT_FIREBASE.appId}};localStorage.setItem('rotaCloud',JSON.stringify(c));$('#status').textContent='Configuração salva • atualizando conexão';closeSetup();location.reload()}
+function copyDeviceConfig(){const c=JSON.stringify(ensureCloudConfig());const encoded=btoa(unescape(encodeURIComponent(c)));navigator.clipboard?.writeText(encoded).then(()=>alert('Configuração copiada. Envie somente para o aparelho autorizado do motorista.')).catch(()=>prompt('Copie este código:',encoded))}
+function importDeviceConfig(){const v=($('#deviceImport')?.value||'').trim();if(!v){alert('Cole o código de configuração.');return}try{let decoded;try{decoded=decodeURIComponent(escape(atob(v)))}catch{decoded=v}const c=JSON.parse(decoded);if(!c?.firebase?.projectId||!c?.accessCode)throw new Error('inválido');c.firebase={...DEFAULT_FIREBASE,...c.firebase};localStorage.setItem('rotaCloud',JSON.stringify(c));alert('Configuração importada. O aparelho será conectado agora.');location.reload()}catch(e){alert('Código inválido. Copie novamente a configuração do aparelho administrador.')}}
+ensureCloudConfig();
 
 function openStudent(){$('#studentModal').classList.remove('hidden')} function openDriver(){$('#driverModal').classList.remove('hidden')} function openChange(){fillStudentSelect();$('#changeModal').classList.remove('hidden')} function closeModal(id){$('#'+id).classList.add('hidden')}
 $('#studentForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);data.students.push({id:Date.now(),name:f.get('name'),guardian:f.get('guardian'),address:f.get('address'),alt:f.get('alt'),school:f.get('school'),schoolAddress:f.get('schoolAddress'),entry:f.get('entry'),exit:f.get('exit')});e.target.reset();closeModal('studentModal');persist()}\n$('#driverForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);data.drivers.push({id:Date.now(),name:f.get('name'),phone:f.get('phone'),code:f.get('code'),vehicle:f.get('vehicle')||'Van 01'});e.target.reset();closeModal('driverModal');persist()}
@@ -183,7 +192,12 @@ window.addEventListener('cloud-gps',e=>{if(e.detail){data.gps=e.detail;localStor
 render();
 </script>
 <script type="module">
-const raw=localStorage.getItem('rotaCloud');
+let raw=localStorage.getItem('rotaCloud');
+if(!raw){
+  const code=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now()).replaceAll('-','')+Math.random().toString(36).slice(2);
+  const seeded={mapsKey:'',accessCode:code,firebase:{apiKey:"AIzaSyD7VR4Dh8YjBOGHs9Y-MiB1MEDj0fvIcWs",authDomain:"fleet-passage-510100-u1.firebaseapp.com",databaseURL:"https://fleet-passage-510100-u1-default-rtdb.firebaseio.com/",projectId:"fleet-passage-510100-u1",storageBucket:"fleet-passage-510100-u1.firebasestorage.app",messagingSenderId:"737524414637",appId:"1:737524414637:web:949b1b68f303a837cfee24"}};
+  raw=JSON.stringify(seeded); localStorage.setItem('rotaCloud',raw);
+}
 if(raw){
   try{
     const cfg=JSON.parse(raw);
@@ -197,11 +211,11 @@ if(raw){
       const bytes=new TextEncoder().encode(cfg.accessCode); const hashBuf=await crypto.subtle.digest('SHA-256',bytes); const org=[...new Uint8Array(hashBuf)].map(b=>b.toString(16).padStart(2,'0')).join('');
       const appRef=ref(db,'orgs/'+org+'/appData/main'), gpsRef=ref(db,'orgs/'+org+'/locations/van01');
       let applying=false;
-      onValue(appRef,s=>{if(s.exists()){applying=true;window.dispatchEvent(new CustomEvent('cloud-data',{detail:s.val()}));setTimeout(()=>applying=false,100)}});
+      onValue(appRef,s=>{if(s.exists()){applying=true;window.dispatchEvent(new CustomEvent('cloud-data',{detail:s.val()}));setTimeout(()=>applying=false,100)}else{try{const local=JSON.parse(localStorage.getItem('rotaData')||'null');if(local)set(appRef,local)}catch{}}});
       onValue(gpsRef,s=>{if(s.exists())window.dispatchEvent(new CustomEvent('cloud-gps',{detail:s.val()}))});
       window.addEventListener('rota-data-changed',e=>{if(!applying)set(appRef,e.detail).catch(()=>{})});
       window.addEventListener('rota-gps-changed',e=>set(gpsRef,e.detail).catch(()=>{}));
-      document.querySelector('#status').textContent='Firebase conectado • sincronização ativa';
+      document.querySelector('#status').textContent='Firebase conectado • dados e GPS sincronizados';
     }
   }catch(err){document.querySelector('#status').textContent='Firebase não conectado'; console.warn(err)}
 }
