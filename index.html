@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Rota Escolar</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#152033;--muted:#667085;--blue:#2458df;--nav:#0f172a;--line:#e2e8f0;--ok:#16803b;--warn:#b7791f;--danger:#c53030}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}header{height:64px;background:var(--nav);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:20}.brand{display:flex;align-items:center;gap:10px}.logo{width:38px;height:38px;background:var(--blue);border-radius:12px;display:grid;place-items:center;font-size:22px}.brand small{display:block;color:#b8c2d1}.app{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 64px)}nav{background:#fff;border-right:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:5px}nav button{border:0;background:transparent;text-align:left;padding:12px;border-radius:10px;font-weight:750;color:#344057}nav button.active{background:#eaf0ff;color:var(--blue)}main{width:100%;max-width:1200px;margin:auto;padding:20px}.page{display:none}.page.active{display:block}.title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}h1{margin:0;font-size:26px}h2{font-size:18px;margin:0 0 12px}p{margin:4px 0;color:var(--muted)}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 16px #0f172a0a}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kpi span{font-size:12px;color:var(--muted)}.kpi b{display:block;font-size:25px;margin-top:5px}.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:800;cursor:pointer}.primary{background:var(--blue);color:#fff}.soft{background:#eaf0ff;color:var(--blue)}.success{background:#e7f7ed;color:var(--ok)}.danger{background:#fff0f0;color:var(--danger)}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.wide{grid-column:1/-1}label{font-size:12px;font-weight:750;color:#475569}input,select{width:100%;padding:10px 11px;border:1px solid #ced7e4;border-radius:10px;margin-top:5px;font:inherit}.stack{display:flex;flex-direction:column;gap:8px}.item{border:1px solid var(--line);border-radius:12px;padding:11px;display:flex;justify-content:space-between;gap:10px;align-items:center}.item small{display:block;color:var(--muted);margin-top:3px}.pill{font-size:11px;font-weight:800;padding:5px 8px;border-radius:999px;background:#eef2ff;color:var(--blue)}.map{height:430px;background:#dfe7f2;border-radius:14px;overflow:hidden;display:grid;place-items:center;color:#607086}.hidden{display:none!important}.modal{position:fixed;inset:0;background:#0b1220aa;z-index:50;display:grid;place-items:center;padding:14px}.modalbox{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:18px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.close{border:0;background:#eef2f7;border-radius:50%;width:34px;height:34px;font-size:19px}.setup{position:fixed;inset:64px 0 0;background:linear-gradient(135deg,#eef3ff,#f8fafc);z-index:40;display:grid;place-items:center;padding:15px;overflow:auto}.setupbox{width:min(720px,100%);background:white;border:1px solid var(--line);border-radius:18px;padding:20px}.note{font-size:12px;color:var(--muted)}table{width:100%;border-collapse:collapse;min-width:700px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);font-size:13px}th{font-size:11px;color:var(--muted);text-transform:uppercase}.tablewrap{overflow:auto}.alert{padding:11px;border-radius:12px;background:#fff8e6;border:1px solid #f3d99a;margin:8px 0}.routebox{padding:12px;background:#f8fafc;border:1px solid var(--line);border-radius:12px}.big{font-size:16px;padding:13px 16px}@media(max-width:820px){.app{grid-template-columns:1fr}nav{position:fixed;bottom:0;left:0;right:0;z-index:30;flex-direction:row;overflow-x:auto;border-right:0;border-top:1px solid var(--line);padding:7px}nav button{white-space:nowrap;font-size:12px;padding:9px}main{padding:14px 12px 78px}.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.map{height:360px}}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">🚐</div><div><b>Rota Escolar</b><small id="status">Demonstração pronta</small></div></div><span class="pill">MVP</span></header>
+
+<div id="setup" class="setup hidden">
+<div class="setupbox">
+<h1>Conectar Google Maps e Firebase</h1>
+<p>Quando você criar seus projetos, cole aqui as informações. O aplicativo guarda a configuração apenas neste aparelho.</p>
+<div class="grid">
+<label class="wide">Chave Google Maps<input id="mapsKey" placeholder="AIza..."></label>
+<label>Firebase apiKey<input id="fbApiKey" placeholder="AIza..."></label>
+<label>Firebase authDomain<input id="fbAuth" placeholder="projeto.firebaseapp.com"></label>
+<label class="wide">Firebase databaseURL<input id="fbDb" placeholder="https://projeto-default-rtdb.firebaseio.com"></label>
+<label>Firebase projectId<input id="fbProject" placeholder="projeto"></label>
+<label>Firebase appId<input id="fbApp" placeholder="1:123:web:abc"></label>
+</div>
+<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveCloud()">Salvar configuração</button><button class="btn soft" onclick="closeSetup()">Continuar em demonstração</button></div>
+<p class="note">Não compartilhe senhas. Essas chaves devem ser restringidas no Google/Firebase antes de usar dados reais de crianças.</p>
+</div></div>
+
+<div class="app">
+<nav id="nav">
+<button class="active" data-p="home">Início</button>
+<button data-p="students">Crianças</button>
+<button data-p="changes">Alterações</button>
+<button data-p="route">Montar rota</button>
+<button data-p="driver">Motorista</button>
+<button data-p="live">Mapa ao vivo</button>
+<button data-p="settings">Configurações</button>
+</nav>
+<main>
+<section id="home" class="page active">
+<div class="title"><div><h1>Painel de hoje</h1><p>Horários, alterações e situação da van.</p></div><button class="btn soft" onclick="openSetup()">Conectar serviços</button></div>
+<div class="kpis">
+<div class="card kpi"><span>Crianças</span><b id="kStudents">0</b></div>
+<div class="card kpi"><span>Alterações hoje</span><b id="kChanges">0</b></div>
+<div class="card kpi"><span>Próxima saída</span><b id="kStart">—</b></div>
+<div class="card kpi"><span>GPS</span><b id="kGps">Parado</b></div>
+</div>
+<div class="card"><h2>Alertas do dia</h2><div id="alerts" class="stack"></div></div>
+<div class="card"><h2>Rota atual</h2><div id="routeSummary">Nenhuma rota calculada.</div></div>
+</section>
+
+<section id="students" class="page">
+<div class="title"><div><h1>Crianças</h1><p>Cadastre responsável, endereço, escola e horários.</p></div><button class="btn primary" onclick="openStudent()">+ Nova criança</button></div>
+<div class="card tablewrap"><table><thead><tr><th>Criança</th><th>Escola</th><th>Entrada</th><th>Saída</th><th>Endereço</th><th></th></tr></thead><tbody id="studentsBody"></tbody></table></div>
+</section>
+
+<section id="changes" class="page">
+<div class="title"><div><h1>Alterações de hoje</h1><p>Saída mais cedo/mais tarde, ausência ou endereço diferente.</p></div><button class="btn primary" onclick="openChange()">+ Nova alteração</button></div>
+<div class="card"><div id="changesList" class="stack"></div></div>
+</section>
+
+<section id="route" class="page">
+<div class="title"><div><h1>Montar rota</h1><p>Calcula de trás para frente que horas a van precisa sair.</p></div></div>
+<div class="card">
+<div class="grid">
+<label>Tipo<select id="routeType"><option value="ida">Ida para escola</option><option value="volta">Volta da escola</option></select></label>
+<label>Horário<select id="routeTime"></select></label>
+<label class="wide">Escola<select id="routeSchool"></select></label>
+</div>
+<div class="row" style="margin-top:12px"><button class="btn primary" onclick="calculateRoute()">Calcular rota</button></div>
+<div id="routeResult" style="margin-top:12px"></div>
+</div>
+<div class="card"><div id="routeMap" class="map">O Google Maps aparecerá aqui após configurar a chave.</div></div>
+</section>
+
+<section id="driver" class="page">
+<div class="title"><div><h1>Motorista</h1><p>Checklist das crianças e GPS ao vivo.</p></div></div>
+<div class="card">
+<div class="row"><button class="btn success big" id="gpsStart" onclick="startGps()">▶ Iniciar GPS</button><button class="btn danger big" id="gpsStop" onclick="stopGps()" disabled>■ Parar GPS</button><button class="btn primary big" onclick="openGoogleMaps()">🧭 Abrir rota no Google Maps</button></div>
+<p id="gpsText" class="note">GPS parado.</p>
+</div>
+<div class="card"><h2>Rota atual</h2><div id="driverStops" class="stack"></div></div>
+</section>
+
+<section id="live" class="page">
+<div class="title"><div><h1>Mapa ao vivo</h1><p>Última posição recebida da van.</p></div></div>
+<div class="card"><div id="liveMap" class="map">A posição da van será mostrada aqui.</div><p id="liveInfo" class="note"></p></div>
+</section>
+
+<section id="settings" class="page">
+<div class="title"><div><h1>Configurações</h1><p>Base da van e margens de segurança.</p></div></div>
+<div class="card grid">
+<label class="wide">Endereço da garagem<input id="baseAddress" value="Marambaia, São Gonçalo, RJ"></label>
+<label>Margem antes da escola (min)<input id="arrivalBuffer" type="number" value="10"></label>
+<label>Margem imprevistos (min)<input id="safetyBuffer" type="number" value="10"></label>
+<label>Tempo embarque/criança (min)<input id="boarding" type="number" value="2"></label>
+<div class="wide"><button class="btn primary" onclick="saveSettings()">Salvar configurações</button></div>
+</div>
+</section>
+</main>
+</div>
+
+<div id="studentModal" class="modal hidden"><div class="modalbox"><div class="modalhead"><h2>Cadastrar criança</h2><button class="close" onclick="closeModal('studentModal')">×</button></div>
+<form id="studentForm" class="grid">
+<label>Nome<input name="name" required></label><label>Responsável<input name="guardian" required></label>
+<label class="wide">Endereço principal<input name="address" required></label><label class="wide">Endereço alternativo autorizado<input name="alt"></label>
+<label>Escola<input name="school" required></label><label>Endereço da escola<input name="schoolAddress" required></label>
+<label>Entrada<input type="time" name="entry" value="07:00" required></label><label>Saída<input type="time" name="exit" value="12:00" required></label>
+<div class="wide"><button class="btn primary" type="submit">Salvar criança</button></div>
+</form></div></div>
+
+<div id="changeModal" class="modal hidden"><div class="modalbox"><div class="modalhead"><h2>Alteração para hoje</h2><button class="close" onclick="closeModal('changeModal')">×</button></div>
+<form id="changeForm" class="grid">
+<label>Criança<select name="student" id="changeStudent" required></select></label>
+<label>Tipo<select name="type"><option value="early">Sai mais cedo</option><option value="late">Sai mais tarde</option><option value="address">Endereço diferente</option><option value="absence">Não usa a van hoje</option></select></label>
+<label>Novo horário<input type="time" name="time"></label>
+<label class="wide">Novo endereço/observação<input name="note"></label>
+<div class="wide"><button class="btn primary" type="submit">Salvar alteração</button></div>
+</form></div></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let data=JSON.parse(localStorage.getItem('rotaData')||'null')||{students:[],changes:[],settings:{base:'Marambaia, São Gonçalo, RJ',arrival:10,safety:10,boarding:2},route:null,gps:null};
+let watchId=null;
+
+function persist(){localStorage.setItem('rotaData',JSON.stringify(data));render()}
+function page(id){$$('.page').forEach(x=>x.classList.toggle('active',x.id===id));$$('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.p===id))}
+$$('#nav button').forEach(b=>b.onclick=()=>page(b.dataset.p));
+function openSetup(){$('#setup').classList.remove('hidden')} function closeSetup(){$('#setup').classList.add('hidden')}
+function saveCloud(){const c={mapsKey:$('#mapsKey').value.trim(),firebase:{apiKey:$('#fbApiKey').value.trim(),authDomain:$('#fbAuth').value.trim(),databaseURL:$('#fbDb').value.trim(),projectId:$('#fbProject').value.trim(),appId:$('#fbApp').value.trim()}};localStorage.setItem('rotaCloud',JSON.stringify(c));$('#status').textContent='Configuração salva neste aparelho';closeSetup()}
+function openStudent(){$('#studentModal').classList.remove('hidden')} function openChange(){fillStudentSelect();$('#changeModal').classList.remove('hidden')} function closeModal(id){$('#'+id).classList.add('hidden')}
+$('#studentForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);data.students.push({id:Date.now(),name:f.get('name'),guardian:f.get('guardian'),address:f.get('address'),alt:f.get('alt'),school:f.get('school'),schoolAddress:f.get('schoolAddress'),entry:f.get('entry'),exit:f.get('exit')});e.target.reset();closeModal('studentModal');persist()}
+$('#changeForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);data.changes.push({id:Date.now(),student:+f.get('student'),type:f.get('type'),time:f.get('time'),note:f.get('note')});e.target.reset();closeModal('changeModal');persist()}
+function removeStudent(id){data.students=data.students.filter(x=>x.id!==id);persist()}
+function removeChange(id){data.changes=data.changes.filter(x=>x.id!==id);persist()}
+function fillStudentSelect(){$('#changeStudent').innerHTML=data.students.map(s=>'<option value="'+s.id+'">'+s.name+'</option>').join('')}
+function effective(s){const c=[...data.changes].reverse().find(x=>x.student===s.id);if(!c)return {...s};let o={...s};if(c.type==='early'||c.type==='late')o.exit=c.time||s.exit;if(c.type==='address'&&c.note)o.address=c.note;if(c.type==='absence')o.absent=true;return o}
+function render(){
+$('#kStudents').textContent=data.students.length;$('#kChanges').textContent=data.changes.length;$('#kStart').textContent=data.route?.start||'—';$('#kGps').textContent=data.gps?'Ativo':'Parado';
+$('#studentsBody').innerHTML=data.students.length?data.students.map(s=>'<tr><td><b>'+s.name+'</b><br><small>'+s.guardian+'</small></td><td>'+s.school+'</td><td>'+s.entry+'</td><td>'+s.exit+'</td><td>'+s.address+'</td><td><button class="btn danger" onclick="removeStudent('+s.id+')">Excluir</button></td></tr>').join(''):'<tr><td colspan="6">Nenhuma criança cadastrada.</td></tr>';
+$('#changesList').innerHTML=data.changes.length?data.changes.map(c=>{const s=data.students.find(x=>x.id===c.student);const labels={early:'Saída antecipada',late:'Saída atrasada',address:'Endereço diferente',absence:'Ausência'};return '<div class="item"><div><b>'+((s&&s.name)||'Criança')+'</b><small>'+labels[c.type]+(c.time?' • '+c.time:'')+(c.note?' • '+c.note:'')+'</small></div><button class="btn danger" onclick="removeChange('+c.id+')">Excluir</button></div>'}).join(''):'Nenhuma alteração para hoje.';
+$('#alerts').innerHTML=data.changes.length?data.changes.map(c=>{const s=data.students.find(x=>x.id===c.student);return '<div class="alert">⚠️ <b>'+((s&&s.name)||'Criança')+'</b> possui alteração para hoje.</div>'}).join(''):'<span class="note">Sem alterações.</span>';
+const schools=[...new Set(data.students.map(s=>s.school))];$('#routeSchool').innerHTML=schools.map(x=>'<option>'+x+'</option>').join('');
+const type=$('#routeType').value;const times=[...new Set(data.students.map(s=>type==='ida'?s.entry:effective(s).exit))].sort();$('#routeTime').innerHTML=times.map(x=>'<option>'+x+'</option>').join('');
+$('#routeSummary').innerHTML=data.route?routeHtml(data.route):'Nenhuma rota calculada.';
+$('#driverStops').innerHTML=data.route?(data.route.stops.map((s,i)=>'<div class="item"><div><b>'+(i+1)+'. '+s.name+'</b><small>'+s.address+'</small></div><span class="pill">Pendente</span></div>').join('')):'Nenhuma rota publicada.';
+$('#baseAddress').value=data.settings.base;$('#arrivalBuffer').value=data.settings.arrival;$('#safetyBuffer').value=data.settings.safety;$('#boarding').value=data.settings.boarding;
+if(data.gps){$('#liveInfo').textContent='Última posição: '+new Date(data.gps.time).toLocaleString('pt-BR')+' • Lat '+data.gps.lat.toFixed(5)+' • Lng '+data.gps.lng.toFixed(5);$('#liveMap').textContent='🚐 Van em '+data.gps.lat.toFixed(5)+', '+data.gps.lng.toFixed(5)}
+fillStudentSelect()
+}
+function routeHtml(r){return '<div class="routebox"><b>'+r.type.toUpperCase()+' • '+r.school+' • '+r.time+'</b><p>Saída recomendada: <b>'+r.start+'</b> • '+r.stops.length+' crianças • margem total '+r.margin+' min</p><div class="stack">'+r.stops.map((s,i)=>'<div>'+(i+1)+'. '+s.name+' — '+s.address+'</div>').join('')+'</div></div>'}
+function calculateRoute(){const type=$('#routeType').value,time=$('#routeTime').value,school=$('#routeSchool').value;if(!time||!school){$('#routeResult').innerHTML='<div class="alert">Cadastre crianças primeiro.</div>';return}let list=data.students.map(effective).filter(s=>!s.absent&&s.school===school&&(type==='ida'?s.entry:s.exit)===time);if(!list.length)return;list.sort((a,b)=>a.address.localeCompare(b.address));const estTravel=Math.max(20,list.length*7),boarding=list.length*(+data.settings.boarding||0),margin=(+data.settings.arrival||0)+(+data.settings.safety||0)+boarding;const [h,m]=time.split(':').map(Number);let total=h*60+m-estTravel-margin;if(type==='volta')total=h*60+m-(+data.settings.safety||0);while(total<0)total+=1440;const start=String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0');data.route={type,time,school,start,margin,origin:type==='ida'?data.settings.base:list[0].schoolAddress,destination:type==='ida'?list[0].schoolAddress:data.settings.base,stops:list.map(s=>({name:s.name,address:s.address}))};persist();$('#routeResult').innerHTML=routeHtml(data.route)}
+function saveSettings(){data.settings={base:$('#baseAddress').value,arrival:+$('#arrivalBuffer').value||0,safety:+$('#safetyBuffer').value||0,boarding:+$('#boarding').value||0};persist()}
+function startGps(){if(!navigator.geolocation){alert('GPS não disponível');return}$('#gpsStart').disabled=true;$('#gpsStop').disabled=false;watchId=navigator.geolocation.watchPosition(p=>{data.gps={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,time:Date.now()};localStorage.setItem('rotaData',JSON.stringify(data));$('#gpsText').textContent='GPS ativo • precisão aproximada '+Math.round(p.coords.accuracy)+' m';render()},e=>{alert(e.message)},{enableHighAccuracy:true,maximumAge:3000,timeout:15000})}
+function stopGps(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;$('#gpsStart').disabled=false;$('#gpsStop').disabled=true;$('#gpsText').textContent='GPS parado.'}
+function openGoogleMaps(){if(!data.route){alert('Calcule uma rota primeiro.');return}const wp=data.route.stops.map(s=>s.address).join('|');const u='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(data.route.origin)+'&destination='+encodeURIComponent(data.route.destination)+'&waypoints='+encodeURIComponent(wp)+'&travelmode=driving&dir_action=navigate';window.open(u,'_blank')}
+$('#routeType').onchange=render;
+render();
+</script>
+</body></html>
