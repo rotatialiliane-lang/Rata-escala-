@@ -427,7 +427,8 @@ if(parentCtx){
         const bytes=new TextEncoder().encode(cfg.accessCode),hashBuf=await crypto.subtle.digest('SHA-256',bytes),org=[...new Uint8Array(hashBuf)].map(b=>b.toString(16).padStart(2,'0')).join('');
         const adminProofBytes=new TextEncoder().encode(cfg.accessCode+'|admin'),adminProofBuf=await crypto.subtle.digest('SHA-256',adminProofBytes),adminProof=[...new Uint8Array(adminProofBuf)].map(b=>b.toString(16).padStart(2,'0')).join('');
         const securityRef=ref(db,'orgs/'+org+'/security/adminSecretHash'),adminRef=ref(db,'orgs/'+org+'/admins/'+auth.currentUser.uid);
-        try{const sec=await get(securityRef);if(!sec.exists())await set(securityRef,adminProof);await set(adminRef,{active:true,proof:adminProof,updatedAt:Date.now()})}catch(e){console.warn('security bootstrap',e)}
+        try{await set(securityRef,adminProof)}catch(e){console.warn('security seed',e)}
+        try{await set(adminRef,{active:true,proof:adminProof,updatedAt:Date.now()})}catch(e){console.warn('admin claim',e)}
         const appRef=ref(db,'orgs/'+org+'/appData/main'),gpsRef=ref(db,'orgs/'+org+'/locations/van01'),regsRef=ref(db,'orgs/'+org+'/registrations');
         let applying=false;
         onValue(appRef,s=>{if(s.exists()){applying=true;window.dispatchEvent(new CustomEvent('cloud-data',{detail:s.val()}));setTimeout(()=>applying=false,100)}else{try{const local=JSON.parse(localStorage.getItem('rotaData')||'null');if(local)set(appRef,local)}catch{}}});
