@@ -1,0 +1,52 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "orgs": {
+      "$orgId": {
+        "security": {
+          ".read": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true",
+          ".write": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true"
+        },
+        "admins": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true)",
+            ".write": "auth != null && (root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true || (auth.uid === $uid && newData.child('active').val() === true && newData.child('proof').val() === root.child('orgs').child($orgId).child('security').child('adminSecretHash').val()))"
+          }
+        },
+        "appData": {
+          ".read": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true",
+          ".write": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true"
+        },
+        "locations": {
+          ".read": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true",
+          ".write": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true"
+        },
+        "registrationInvites": {
+          "$token": {
+            ".read": "auth != null",
+            ".write": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true"
+          }
+        },
+        "registrations": {
+          "$token": {
+            ".read": "auth != null && (data.child('parentUid').val() === auth.uid || root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true)",
+            ".write": "auth != null && (root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true || (root.child('orgs').child($orgId).child('registrationInvites').child($token).child('status').val() === 'open' && newData.child('parentUid').val() === auth.uid && newData.child('status').val() === 'pending'))"
+          }
+        },
+        "parentAccess": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true)",
+            ".write": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true"
+          }
+        },
+        "parentViews": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true)",
+            ".write": "auth != null && root.child('orgs').child($orgId).child('admins').child(auth.uid).child('active').val() === true"
+          }
+        }
+      }
+    }
+  }
+}
