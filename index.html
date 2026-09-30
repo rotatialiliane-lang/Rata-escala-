@@ -26,12 +26,12 @@
 <label>Firebase projectId<input id="fbProject" placeholder="projeto"></label>
 <label>Firebase appId<input id="fbApp" placeholder="1:123:web:abc"></label><label class="wide">Código privado da empresa<input id="accessCode" placeholder="Será criado automaticamente se deixar vazio"></label>
 </div>
-<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveCloud()">Salvar configuração</button><button class="btn success" onclick="shareDriverWhatsApp()">📲 Enviar pelo WhatsApp</button><button class="btn soft" onclick="copyDeviceConfig()">Copiar para outro aparelho</button><button class="btn soft" onclick="closeSetup()">Fechar</button></div>
+<div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveCloud()">Salvar configuração</button><button class="btn success" onclick="closeSetup();page('drivers')">Acessos individuais dos motoristas</button><button class="btn soft" onclick="copyDeviceConfig()">Copiar para outro administrador</button><button class="btn soft" onclick="closeSetup()">Fechar</button></div>
 <details style="margin-top:14px"><summary>Configurar outro aparelho administrador</summary>
 <label class="wide" style="margin-top:10px">Cole o código somente em outro aparelho autorizado do administrador<textarea id="deviceImport" rows="5" placeholder="Cole aqui o código de configuração"></textarea></label>
 <button class="btn primary" style="margin-top:10px" onclick="importDeviceConfig()">Importar e conectar</button>
 </details>
-<p class="note">Não compartilhe senhas. O código copiado contém a identificação privada desta operação e deve ser enviado somente ao aparelho autorizado do motorista.</p>
+<p class="note">Não compartilhe senhas. Este código dá acesso administrativo à operação e deve ser usado somente em outro aparelho autorizado do administrador.</p>
 </div></div>
 
 <div class="app">
