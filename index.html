@@ -410,7 +410,7 @@ if(parentCtx){
         window.dispatchEvent(new CustomEvent('parent-registration-result',{detail:{token:parentCtx.token,ok:true}}));
       }catch(err){window.dispatchEvent(new CustomEvent('parent-registration-result',{detail:{token:parentCtx.token,ok:false,message:err?.message||'Falha ao enviar cadastro.'}}))}
     });
-    document.querySelector('#status').textContent='Cadastro seguro conectado';
+    document.querySelector('#status').textContent='Cadastro conectado';
   }catch(err){document.querySelector('#status').textContent='Não foi possível conectar';console.warn(err);window.dispatchEvent(new CustomEvent('parent-invite-status',{detail:{token:parentCtx.token,status:'invalid'}}))}
 }else{
   let raw=localStorage.getItem('rotaCloud');
