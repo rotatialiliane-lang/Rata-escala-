@@ -395,17 +395,18 @@ render();
 <script type="module">
 const DEFAULT_FIREBASE_MODULE={apiKey:"AIzaSyD7VR4Dh8YjBOGHs9Y-MiB1MEDj0fvIcWs",authDomain:"fleet-passage-510100-u1.firebaseapp.com",databaseURL:"https://fleet-passage-510100-u1-default-rtdb.firebaseio.com/",projectId:"fleet-passage-510100-u1",storageBucket:"fleet-passage-510100-u1.firebasestorage.app",messagingSenderId:"737524414637",appId:"1:737524414637:web:949b1b68f303a837cfee24"};
 const parentCtx=window.__parentInviteContext;
+const driverCtx=window.__driverInviteContext;
 const [{initializeApp},{getAuth,signInAnonymously},{getDatabase,ref,set,onValue,get,update}] = await Promise.all([
   import('https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js'),
   import('https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js'),
   import('https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js')
 ]);
+
 if(parentCtx){
   try{
     const app=initializeApp(DEFAULT_FIREBASE_MODULE);const auth=getAuth(app);await signInAnonymously(auth);const db=getDatabase(app);
     const inviteRef=ref(db,'orgs/'+parentCtx.org+'/registrationInvites/'+parentCtx.token);
-    const snap=await get(inviteRef);
-    const invite=snap.exists()?snap.val():null;
+    const snap=await get(inviteRef),invite=snap.exists()?snap.val():null;
     window.dispatchEvent(new CustomEvent('parent-invite-status',{detail:{token:parentCtx.token,status:invite?.status||'invalid'}}));
     window.addEventListener('parent-registration-submit',async e=>{
       if(e.detail?.org!==parentCtx.org||e.detail?.token!==parentCtx.token)return;
@@ -420,6 +421,29 @@ if(parentCtx){
     });
     document.querySelector('#status').textContent='Cadastro conectado';
   }catch(err){document.querySelector('#status').textContent='Não foi possível conectar';console.warn(err);window.dispatchEvent(new CustomEvent('parent-invite-status',{detail:{token:parentCtx.token,status:'invalid'}}))}
+}else if(driverCtx){
+  try{
+    const app=initializeApp(DEFAULT_FIREBASE_MODULE);const auth=getAuth(app);await signInAnonymously(auth);const db=getDatabase(app),uid=auth.currentUser.uid;
+    const inviteRef=ref(db,'orgs/'+driverCtx.org+'/driverInvites/'+driverCtx.token),snap=await get(inviteRef),invite=snap.exists()?snap.val():null;
+    if(!invite)throw new Error('Convite de motorista não encontrado.');
+    if(invite.status==='claimed'&&invite.uid&&invite.uid!==uid)throw new Error('Este convite já foi usado em outro acesso.');
+    if(!['open','claimed'].includes(invite.status))throw new Error('Este convite não está mais disponível.');
+    const driverId=String(invite.driverId||'');
+    if(!driverId)throw new Error('Convite sem motorista vinculado.');
+    if(invite.status==='open'){
+      await set(ref(db,'orgs/'+driverCtx.org+'/driverAccess/'+uid),{active:true,driverId,inviteToken:driverCtx.token,claimedAt:Date.now()});
+      await update(inviteRef,{status:'claimed',uid,claimedAt:Date.now()});
+    }
+    if(invite.bootstrapView)window.dispatchEvent(new CustomEvent('cloud-driver-view',{detail:invite.bootstrapView}));
+    const viewRef=ref(db,'orgs/'+driverCtx.org+'/driverViews/'+uid+'/current');
+    onValue(viewRef,s=>{if(s.exists())window.dispatchEvent(new CustomEvent('cloud-driver-view',{detail:s.val()}))});
+    const opRef=ref(db,'orgs/'+driverCtx.org+'/driverOps/'+uid);
+    window.addEventListener('driver-status-action',async e=>{const d=e.detail||{};if(String(d.driverId)!==driverId)return;try{await update(opRef,{driverId,routeId:d.routeId,updatedAt:Date.now()});await set(ref(db,'orgs/'+driverCtx.org+'/driverOps/'+uid+'/status/'+d.stopId),d)}catch(err){console.warn(err)}});
+    window.addEventListener('driver-km-action',async e=>{const d=e.detail||{};if(String(d.driverId)!==driverId)return;try{await update(opRef,{driverId,routeId:d.routeId,km:{kmStart:d.kmStart,kmEnd:d.kmEnd,updatedAt:d.updatedAt||Date.now()},updatedAt:Date.now()})}catch(err){console.warn(err)}});
+    window.addEventListener('driver-finish-action',async e=>{const d=e.detail||{};if(String(d.driverId)!==driverId)return;try{await update(opRef,{driverId,routeId:d.routeId,finish:{kmStart:d.kmStart,kmEnd:d.kmEnd,requestedAt:d.requestedAt||Date.now()},updatedAt:Date.now()})}catch(err){console.warn(err)}});
+    window.addEventListener('rota-gps-changed',e=>{const g=e.detail;if(!g)return;set(ref(db,'orgs/'+driverCtx.org+'/locations/'+uid),{...g,driverId,uid}).catch(()=>{})});
+    document.querySelector('#status').textContent='Motorista conectado • acesso individual';
+  }catch(err){console.warn(err);document.querySelector('#status').textContent='Acesso do motorista bloqueado';window.dispatchEvent(new CustomEvent('driver-access-error',{detail:{message:err?.message||'Acesso inválido.'}}))}
 }else{
   let raw=localStorage.getItem('rotaCloud');
   if(!raw){
@@ -437,19 +461,58 @@ if(parentCtx){
         const securityRef=ref(db,'orgs/'+org+'/security/adminSecretHash'),adminRef=ref(db,'orgs/'+org+'/admins/'+auth.currentUser.uid);
         try{await set(securityRef,adminProof)}catch(e){console.warn('security seed',e)}
         try{await set(adminRef,{active:true,proof:adminProof,updatedAt:Date.now()})}catch(e){console.warn('admin claim',e)}
-        const appRef=ref(db,'orgs/'+org+'/appData/main'),gpsRef=ref(db,'orgs/'+org+'/locations/van01'),regsRef=ref(db,'orgs/'+org+'/registrations');
-        let applying=false;
-        onValue(appRef,s=>{if(s.exists()){applying=true;window.dispatchEvent(new CustomEvent('cloud-data',{detail:s.val()}));setTimeout(()=>applying=false,100)}else{try{const local=JSON.parse(localStorage.getItem('rotaData')||'null');if(local)set(appRef,local)}catch{}}});
-        onValue(gpsRef,s=>{if(s.exists())window.dispatchEvent(new CustomEvent('cloud-gps',{detail:s.val()}))});
+
+        const appRef=ref(db,'orgs/'+org+'/appData/main'),regsRef=ref(db,'orgs/'+org+'/registrations'),driverAccessRef=ref(db,'orgs/'+org+'/driverAccess'),driverOpsRef=ref(db,'orgs/'+org+'/driverOps'),locationsRef=ref(db,'orgs/'+org+'/locations');
+        let applying=false,currentAdminData=null,driverAccessCache={},locationsCache={};
+
+        function readLocalAdmin(){try{return JSON.parse(localStorage.getItem('rotaData')||'null')}catch{return null}}
+        function groupedDriverAccess(){const out={};for(const [uid,a] of Object.entries(driverAccessCache||{})){if(!a?.active||a.driverId==null)continue;(out[String(a.driverId)]||(out[String(a.driverId)]=[])).push({uid,...a})}return out}
+        function driverViewFor(d,uid){
+          const drv=(d.drivers||[]).find(x=>String(x.id)===String(driverAccessCache[uid]?.driverId));
+          if(!drv)return null;
+          const van=(d.vans||[]).find(x=>String(x.id)===String(drv.vanId));
+          const route=d.route&&String(d.route.driverId)===String(drv.id)?JSON.parse(JSON.stringify(d.route)):null;
+          return{driver:{id:drv.id,name:drv.name,code:drv.code||'',phone:drv.phone||'',vanId:drv.vanId||null},van:van?{id:van.id,name:van.name||'',plate:van.plate||'',address:van.address||'',odometer:van.odometer??null}:null,settings:{city:d.settings?.city||'São Gonçalo, RJ, Brasil',base:van?.address||d.settings?.base||''},route,updatedAt:Date.now()};
+        }
+        async function publishDriverViews(d){
+          if(!d)return;
+          const jobs=[];
+          for(const [uid,a] of Object.entries(driverAccessCache||{})){if(!a?.active)continue;const view=driverViewFor(d,uid);if(view)jobs.push(set(ref(db,'orgs/'+org+'/driverViews/'+uid+'/current'),view))}
+          await Promise.allSettled(jobs);
+        }
+        function emitCurrentGps(){
+          const route=currentAdminData?.route;if(!route)return;
+          const access=Object.entries(driverAccessCache||{}).find(([,a])=>a?.active&&String(a.driverId)===String(route.driverId));
+          const g=access?locationsCache[access[0]]:locationsCache.van01;
+          if(g)window.dispatchEvent(new CustomEvent('cloud-gps',{detail:g}));
+        }
+
+        onValue(appRef,s=>{if(s.exists()){currentAdminData=s.val();applying=true;window.dispatchEvent(new CustomEvent('cloud-data',{detail:currentAdminData}));publishDriverViews(currentAdminData);setTimeout(()=>applying=false,100)}else{const local=readLocalAdmin();if(local){currentAdminData=local;set(appRef,local);publishDriverViews(local)}}});
         onValue(regsRef,s=>window.dispatchEvent(new CustomEvent('parent-registrations',{detail:s.exists()?s.val():{}})));
-        window.addEventListener('rota-data-changed',e=>{if(!applying)set(appRef,e.detail).catch(()=>{})});
-        window.addEventListener('rota-gps-changed',e=>set(gpsRef,e.detail).catch(()=>{}));
+        onValue(driverAccessRef,s=>{driverAccessCache=s.exists()?s.val():{};window.dispatchEvent(new CustomEvent('driver-access-map',{detail:groupedDriverAccess()}));publishDriverViews(currentAdminData||readLocalAdmin());emitCurrentGps()});
+        onValue(driverOpsRef,s=>window.dispatchEvent(new CustomEvent('driver-ops',{detail:s.exists()?s.val():{}})));
+        onValue(locationsRef,s=>{locationsCache=s.exists()?s.val():{};emitCurrentGps()});
+
+        window.addEventListener('rota-data-changed',e=>{if(!applying){currentAdminData=e.detail;set(appRef,e.detail).catch(()=>{});publishDriverViews(e.detail)}});
+        window.addEventListener('rota-gps-changed',e=>set(ref(db,'orgs/'+org+'/locations/van01'),e.detail).catch(()=>{}));
+
         window.addEventListener('create-parent-invite',async e=>{
           const d=e.detail||{};if(d.org!==org||!d.token)return;
           try{await set(ref(db,'orgs/'+org+'/registrationInvites/'+d.token),{status:'open',createdAt:d.createdAt||Date.now()});window.dispatchEvent(new CustomEvent('parent-invite-created',{detail:{token:d.token,ok:true}}))}catch(err){window.dispatchEvent(new CustomEvent('parent-invite-created',{detail:{token:d.token,ok:false}}))}
         });
+        window.addEventListener('create-driver-invite',async e=>{
+          const d=e.detail||{};if(d.org!==org||!d.token||d.driverId==null)return;
+          try{
+            const local=currentAdminData||readLocalAdmin()||{},drv=(local.drivers||[]).find(x=>String(x.id)===String(d.driverId)),van=(local.vans||[]).find(x=>String(x.id)===String(drv?.vanId));
+            const route=local.route&&String(local.route.driverId)===String(d.driverId)?JSON.parse(JSON.stringify(local.route)):null;
+            const bootstrapView={driver:drv?{id:drv.id,name:drv.name,code:drv.code||'',phone:drv.phone||'',vanId:drv.vanId||null}:{id:d.driverId,name:d.driverName||'Motorista'},van:van?{id:van.id,name:van.name||'',plate:van.plate||'',address:van.address||'',odometer:van.odometer??null}:null,settings:{city:local.settings?.city||'São Gonçalo, RJ, Brasil',base:van?.address||local.settings?.base||''},route,updatedAt:Date.now()};
+            await set(ref(db,'orgs/'+org+'/driverInvites/'+d.token),{status:'open',driverId:String(d.driverId),driverName:d.driverName||'',createdAt:d.createdAt||Date.now(),bootstrapView});
+            window.dispatchEvent(new CustomEvent('driver-invite-created',{detail:{token:d.token,ok:true}}))
+          }catch(err){console.warn(err);window.dispatchEvent(new CustomEvent('driver-invite-created',{detail:{token:d.token,ok:false}}))}
+        });
         window.addEventListener('registration-action',async e=>{const d=e.detail||{};if(!d.token)return;try{await update(ref(db,'orgs/'+org+'/registrations/'+d.token),{status:d.status,reviewedAt:d.reviewedAt||Date.now()});await update(ref(db,'orgs/'+org+'/registrationInvites/'+d.token),{status:d.status,reviewedAt:d.reviewedAt||Date.now()});if(d.status==='approved'&&d.parentUid&&d.childId&&d.parentView){await set(ref(db,'orgs/'+org+'/parentAccess/'+d.parentUid+'/children/'+d.childId),true);await set(ref(db,'orgs/'+org+'/parentViews/'+d.parentUid+'/children/'+d.childId),{...d.parentView,approvedAt:d.reviewedAt||Date.now()})}}catch(err){console.warn(err)}});
-        document.querySelector('#status').textContent='Firebase conectado • dados e GPS sincronizados';
+
+        document.querySelector('#status').textContent='Firebase conectado • acessos separados';
       }
     }catch(err){document.querySelector('#status').textContent='Firebase não conectado';console.warn(err)}
   }
