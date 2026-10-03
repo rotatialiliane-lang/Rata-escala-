@@ -5,7 +5,6 @@ A small Render web service for analyzing supplier quotation PDFs and extracting 
 ## Required Render environment variables
 
 - `OPENAI_API_KEY`: an OpenAI API key, stored only in Render's secret environment settings.
-- `AI_ACCESS_CODE`: a long, random access code shared only with the team members allowed to run paid AI analyses.
 - `CORS_ORIGIN`: `https://oficina-marcenaria-teste.onrender.com`
 - Optional `OPENAI_MODEL`: defaults to `gpt-4.1-mini`.
 
@@ -20,4 +19,4 @@ From the repository root:
 
 The service listens on `0.0.0.0:$PORT`. Health check: `/healthz`.
 
-The endpoint limits PDF size to 10 MB, limits each source IP to 12 analyses per hour, accepts requests only from the test site origin, and requires the configured `AI_ACCESS_CODE` header.
+The endpoint limits PDF size to 10 MB, limits each source IP to 12 analyses per hour, accepts requests only from the test site origin, and requires the upload consent checkbox in the interface; access is limited to the public test-site origin.

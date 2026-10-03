@@ -1,5 +1,4 @@
 import { createServer } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 
 const PORT = Number(process.env.PORT) || 10000;
 const ORIGIN = process.env.CORS_ORIGIN || 'https://oficina-marcenaria-teste.onrender.com';
@@ -36,12 +35,6 @@ function readBody(req) {
     req.on('error', reject);
   });
 }
-function validCode(received, expected) {
-  if (!received || !expected) return false;
-  const a = Buffer.from(received);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 function allowRate(ip) {
   const now = Date.now();
   const slot = usage.get(ip) || { start: now, count: 0 };
@@ -66,14 +59,13 @@ const server = createServer(async (req, res) => {
   const origin = req.headers.origin;
   if (req.method === 'OPTIONS') {
     if (origin !== ORIGIN) return send(res, 403, { error: 'Origem não autorizada.' }, origin);
-    res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGIN, 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-AI-Access-Code', 'Access-Control-Max-Age': '600', 'Vary': 'Origin' });
+    res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGIN, 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600', 'Vary': 'Origin' });
     return res.end();
   }
-  if (req.url === '/healthz' && req.method === 'GET') return send(res, 200, { status: 'ok', aiConfigured: Boolean(process.env.OPENAI_API_KEY && process.env.AI_ACCESS_CODE) }, origin);
+  if (req.url === '/healthz' && req.method === 'GET') return send(res, 200, { status: 'ok', aiConfigured: Boolean(process.env.OPENAI_API_KEY) }, origin);
   if (req.url !== '/api/analyze-pdf' || req.method !== 'POST') return send(res, 404, { error: 'Rota não encontrada.' }, origin);
   if (origin !== ORIGIN) return send(res, 403, { error: 'Origem não autorizada.' }, origin);
-  if (!process.env.OPENAI_API_KEY || !process.env.AI_ACCESS_CODE) return send(res, 503, { error: 'O serviço de IA ainda não foi configurado pelo administrador.' }, origin);
-  if (!validCode(req.headers['x-ai-access-code'], process.env.AI_ACCESS_CODE)) return send(res, 401, { error: 'Código de acesso à IA incorreto.' }, origin);
+  if (!process.env.OPENAI_API_KEY) return send(res, 503, { error: 'O serviço de IA ainda não foi configurado pelo administrador.' }, origin);
 
   const ip = req.socket.remoteAddress || 'unknown';
   if (!allowRate(ip)) return send(res, 429, { error: 'Limite temporário de análises atingido. Tente novamente mais tarde.' }, origin);
