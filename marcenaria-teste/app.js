@@ -1,4 +1,5 @@
 const STORAGE_KEY = "oficina-app-v1";
+const MATERIAL_BUFFER_PERCENT = 20;
 const STAGES = ["Projeto fechado", "Corte", "Pré-montagem", "Montagem", "Embalagem", "Frete", "Montagem do ambiente", "Montagem concluída"];
 const CHECKLIST = {
   "Conferência dos móveis": ["Portas abrem e fecham sem agarrar", "Gavetas abrem e fecham corretamente", "Acionadores e ferragens estão funcionando", "Painéis instalados e conferidos, quando houver"],
@@ -19,12 +20,16 @@ let financeProjectFilter = "todos";
 let financeTypeFilter = "todos";
 
 function loadState(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {clients:[],projects:[],transactions:[]}; }
-  catch { return {clients:[],projects:[],transactions:[]}; }
+  try {
+    const saved=JSON.parse(localStorage.getItem(STORAGE_KEY))||{};
+    return {clients:[],projects:[],transactions:[],budgets:[],supplierQuotes:[],...saved};
+  }
+  catch { return {clients:[],projects:[],transactions:[],budgets:[],supplierQuotes:[]}; }
 }
 function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
 function esc(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function money(value){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(value)||0);}
+function safeHttpUrl(value){try{const url=new URL(value);return url.protocol==="https:"||url.protocol==="http:"?url.href:"";}catch{return "";}}
 function dateBR(value){if(!value)return "—";const d=new Date(`${value}T12:00:00`);return Number.isNaN(d.getTime())?"—":d.toLocaleDateString("pt-BR");}
 function todayISO(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");}
 function clientName(id){return state.clients.find(c=>c.id===id)?.name||"Cliente sem cadastro";}
@@ -34,12 +39,12 @@ function activeProjects(){return state.projects.filter(p=>p.stage!=="Montagem co
 function showToast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),2700);}
 function initials(name="?"){return name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();}
 function render(){
-  const labels={dashboard:"Visão geral",projects:"Projetos",production:"Produção",assembly:"Montagem e entrega",clients:"Clientes",finance:"Financeiro"};
+  const labels={dashboard:"Visão geral",projects:"Projetos",production:"Produção",assembly:"Montagem e entrega",clients:"Clientes",quotes:"Orçamentos e materiais",finance:"Financeiro"};
   document.getElementById("crumb").textContent=labels[currentView]||"Projeto";
   document.getElementById("projectCount").textContent=state.projects.length;
   document.getElementById("today").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"short"});
   const root=document.getElementById("app");
-  const routes={dashboard:renderDashboard,projects:renderProjects,production:renderProduction,assembly:renderAssembly,clients:renderClients,finance:renderFinance};
+  const routes={dashboard:renderDashboard,projects:renderProjects,production:renderProduction,assembly:renderAssembly,clients:renderClients,quotes:renderQuotes,finance:renderFinance};
   root.innerHTML=(routes[currentView]||renderDashboard)();
   bindViewEvents();
 }
@@ -81,6 +86,28 @@ function renderClients(){
   <div class="note-box">O cadastro por link será conectado ao banco de dados na etapa de autenticação. Neste protótipo, os dados ficam apenas neste navegador.</div>
   <div class="toolbar"><label class="search">⌕ <input id="clientSearch" placeholder="Buscar nome, telefone ou e-mail" value="${esc(q)}"></label><span class="grow"></span><span class="metric-sub">${rows.length} clientes</span></div>
   <div class="card table-card"><div class="table-wrap"><table style="min-width:560px"><thead><tr><th>Cliente</th><th>Telefone</th><th>E-mail</th><th>Projetos</th><th></th></tr></thead><tbody>${rows.length?rows.map(c=>`<tr><td><div class="client-cell"><span class="client-avatar">${initials(c.name)}</span><div><strong>${esc(c.name)}</strong><div class="project-sub">${esc(c.address||"Endereço não informado")}</div></div></div></td><td>${esc(c.phone||"—")}</td><td>${esc(c.email||"—")}</td><td>${state.projects.filter(p=>p.clientId===c.id).length}</td><td><button class="table-action" data-action="client-detail" data-id="${c.id}">Ver</button></td></tr>`).join(""):`<tr><td colspan="5"><div class="empty-state"><b>Seus clientes aparecerão aqui</b>Cadastre um cliente ou associe um novo projeto a um cadastro.</div></td></tr>`}</tbody></table></div></div>`;
+}
+function allQuotedMaterials(){
+ return (state.supplierQuotes||[]).flatMap(q=>(q.items||[]).map(item=>({...item,supplier:q.supplier,quoteDate:q.date,documentName:q.documentName,sourceUrl:q.sourceUrl,quoteId:q.id}))).sort((a,b)=>(b.quoteDate||"").localeCompare(a.quoteDate||""));
+}
+function latestQuotedMaterials(){
+ const latest=new Map();
+ for(const item of allQuotedMaterials()){
+  const key=`${(item.description||"").trim().toLowerCase()}|${(item.unit||"").trim().toLowerCase()}`;
+  if(!latest.has(key))latest.set(key,item);
+ }
+ return [...latest.values()];
+}
+function renderQuotes(){
+ const budgets=state.budgets||[],materials=allQuotedMaterials(),latest=latestQuotedMaterials();
+ const statuses=["Em preparação","Enviado","Aprovado","Perdido"];
+ return `${pageHead("VENDAS E CUSTOS","Orçamentos e materiais","Acompanhe as propostas e consulte preços já recebidos dos fornecedores.",`<button class="btn" data-action="new-supplier-quote">＋ Registrar cotação de material</button><button class="btn primary" data-action="new-budget">＋ Novo orçamento</button>`)}
+ <div class="note-box"><strong>Teste do protótipo:</strong> os preços abaixo são registrados a partir de uma cotação recebida e conferida. A leitura automática de PDF e a pesquisa direta na internet ainda não estão conectadas. O sistema aplica 20% aos insumos registrados e mantém o valor original para comparação.</div>
+ <section class="cards metrics quote-metrics">${statuses.map(status=>`<div class="card"><div class="metric-top">${esc(status)}</div><div class="metric-value">${budgets.filter(b=>b.status===status).length}</div><div class="metric-sub">orçamentos</div></div>`).join("")}</section>
+ <div class="card" style="margin-bottom:14px"><div class="section-head"><div><h2>Orçamentos de clientes</h2><div class="project-sub">Valores e status registrados pela equipe.</div></div><span class="metric-sub">${budgets.length} no total</span></div><div class="table-wrap"><table style="min-width:760px"><thead><tr><th>Cliente / projeto</th><th>Data</th><th>Valor</th><th>Situação</th><th>Observação</th></tr></thead><tbody>${budgets.length?budgets.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(b=>`<tr><td><strong>${esc(b.projectName)}</strong><div class="project-sub">${esc(clientName(b.clientId))}</div></td><td>${dateBR(b.date)}</td><td>${money(b.amount)}</td><td><select class="filter budget-status" data-id="${b.id}" aria-label="Situação do orçamento de ${esc(b.projectName)}">${statuses.map(s=>`<option ${s===b.status?"selected":""}>${esc(s)}</option>`).join("")}</select></td><td>${esc(b.note||"—")}</td></tr>`).join(""):`<tr><td colspan="5"><div class="empty-state"><b>Nenhum orçamento registrado</b>Crie um orçamento para acompanhar quantos estão em preparação, enviados e aprovados.</div></td></tr>`}</tbody></table></div></div>
+ <div class="card" style="margin-bottom:14px"><div class="section-head"><div><h2>Último preço conhecido por material</h2><div class="project-sub">Preço-base e estimativa com acréscimo de ${MATERIAL_BUFFER_PERCENT}%.</div></div><span class="metric-sub">${latest.length} materiais</span></div><div class="table-wrap"><table style="min-width:780px"><thead><tr><th>Material</th><th>Fornecedor / região</th><th>Cotado em</th><th>Preço-base / unidade</th><th>Com ${MATERIAL_BUFFER_PERCENT}%</th><th>Referência</th></tr></thead><tbody>${latest.length?latest.map(item=>`<tr><td><strong>${esc(item.description)}</strong><div class="project-sub">${esc(item.category)} · ${esc(item.unit)}</div></td><td>${esc(item.supplier)}<div class="project-sub">${esc(item.region||"Região não informada")}</div></td><td>${dateBR(item.quoteDate)}</td><td>${money(item.unitCost)}</td><td style="font-weight:700;color:#356d54">${money(item.unitCost*(1+MATERIAL_BUFFER_PERCENT/100))}</td><td>${safeHttpUrl(item.sourceUrl)?`<a href="${esc(safeHttpUrl(item.sourceUrl))}" target="_blank" rel="noopener">Abrir fonte</a>`:esc(item.documentName||"Cotação registrada")}</td></tr>`).join(""):`<tr><td colspan="6"><div class="empty-state"><b>O catálogo começa com suas cotações</b>Registre o preço recebido do fornecedor. O histórico vai guardar data, valor-base e valor com acréscimo.</div></td></tr>`}</tbody></table></div></div>
+ <div class="card"><div class="section-head"><div><h2>Histórico de cotações recebidas</h2><div class="project-sub">Cada registro preserva o preço informado naquela data.</div></div><span class="metric-sub">${(state.supplierQuotes||[]).length} documentos</span></div><div class="table-wrap"><table style="min-width:850px"><thead><tr><th>Data / fornecedor</th><th>Material</th><th>Quantidade</th><th>Preço-base</th><th>Com ${MATERIAL_BUFFER_PERCENT}%</th><th>PDF de referência</th></tr></thead><tbody>${materials.length?materials.map(item=>`<tr><td><strong>${dateBR(item.quoteDate)}</strong><div class="project-sub">${esc(item.supplier)}</div></td><td>${esc(item.description)}<div class="project-sub">${esc(item.category)}</div></td><td>${Number(item.quantity)||0} ${esc(item.unit)}</td><td>${money(item.unitCost*item.quantity)}</td><td style="font-weight:700">${money(item.unitCost*item.quantity*(1+MATERIAL_BUFFER_PERCENT/100))}</td><td>${esc(item.documentName||"Não informado")}</td></tr>`).join(""):`<tr><td colspan="6"><div class="empty-state">As cotações recebidas aparecerão aqui.</div></td></tr>`}</tbody></table></div></div>
+ <p class="disclaimer">Este catálogo usa apenas os dados registrados neste navegador. Preços da internet, estoque, frete e leitura automática de PDF ainda não são confirmados pelo protótipo.</p>`;
 }
 function renderProduction(){
  const buckets=STAGES.map(stage=>({stage,projects:state.projects.filter(p=>(p.stage||STAGES[0])===stage)}));
@@ -139,6 +166,7 @@ function bindViewEvents(){
  document.getElementById("projectFilter")?.addEventListener("change",e=>document.querySelectorAll("tbody tr[data-stage]").forEach(row=>row.hidden=e.target.value!=="todos"&&row.dataset.stage!==e.target.value));
  document.getElementById("financeMonth")?.addEventListener("change",e=>{financeMonthFilter=e.target.value;render();});
  document.getElementById("financeProject")?.addEventListener("change",e=>{financeProjectFilter=e.target.value;render();});document.getElementById("financeType")?.addEventListener("change",e=>{financeTypeFilter=e.target.value;render();});
+ document.querySelectorAll(".budget-status").forEach(select=>select.addEventListener("change",()=>{const budget=(state.budgets||[]).find(x=>x.id===select.dataset.id);if(!budget)return;budget.status=select.value;save();render();showToast("Situação do orçamento atualizada.");}));
  document.querySelectorAll("[data-check]").forEach(input=>input.addEventListener("change",()=>{const p=state.projects.find(x=>x.id===selectedAssembly);if(!p)return;p.checks=p.checks||{};p.checks[input.dataset.check]=input.checked;save();}));
  document.querySelectorAll("[data-quick-check]").forEach(input=>input.addEventListener("change",()=>{const q=quickChecklistState();q.checks[input.dataset.quickCheck]=input.checked;save();render();}));
  document.querySelectorAll("[data-quick-field]").forEach(input=>input.addEventListener("change",()=>{quickChecklistState()[input.dataset.quickField]=input.value;save();}));
@@ -147,6 +175,7 @@ function bindViewEvents(){
 function filterFinance(){render();}
 function action(name,id){
  if(name==="new-client")return openClientModal();if(name==="new-project")return openProjectModal();if(name==="new-transaction")return openTransactionModal();
+ if(name==="new-budget")return openBudgetModal();if(name==="new-supplier-quote")return openSupplierQuoteModal();
  if(name==="export-finance")return exportFinanceCsv();
  if(name==="invite-info")return openInfoModal();
  if(name==="complete-quick")return completeQuickChecklist();
@@ -167,6 +196,38 @@ function field(label,name,placeholder="",type="text",required=false,value=""){re
 function openClientModal(){
  modal("Novo cliente","Cadastre as informações básicas do contratante.",`<div class="form-grid">${field("Nome completo","clientName","Nome do cliente","text",true)}${field("Telefone / WhatsApp","clientPhone","(00) 00000-0000","tel")}${field("E-mail","clientEmail","cliente@email.com","email")}${field("Endereço da obra","clientAddress","Rua, número, bairro e cidade","text")}</div><p class="disclaimer">Não solicite dados pessoais que não sejam necessários ao atendimento. Os dados digitados ficam neste navegador.</p>`,`<button class="btn" data-close="true">Cancelar</button><button class="btn primary" id="saveClient">Salvar cliente</button>`);
  document.getElementById("saveClient").onclick=()=>{const name=document.getElementById("clientName").value.trim();if(!name)return showToast("Informe o nome do cliente.");state.clients.push({id:crypto.randomUUID(),name,phone:document.getElementById("clientPhone").value.trim(),email:document.getElementById("clientEmail").value.trim(),address:document.getElementById("clientAddress").value.trim()});save();closeModal();render();showToast("Cliente cadastrado.");};
+}
+function openBudgetModal(){
+ const clients=state.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+ modal("Novo orçamento","Registre o valor enviado ao cliente e acompanhe o retorno.",`${!clients?`<div class="note-box">Cadastre o cliente antes de criar o orçamento.</div>`:""}<div class="form-grid"><div class="field"><label for="budgetClient">Cliente *</label><select id="budgetClient"><option value="">Selecione</option>${clients}</select></div>${field("Nome do projeto","budgetProject","Ex.: cozinha e lavanderia","text",true)}${field("Valor do orçamento (R$)","budgetAmount","0,00","number",true)}${field("Data do orçamento","budgetDate","","date",true,todayISO())}<div class="field"><label for="budgetStatus">Situação</label><select id="budgetStatus"><option>Em preparação</option><option>Enviado</option><option>Aprovado</option><option>Perdido</option></select></div><div class="field full"><label for="budgetNote">Observação</label><textarea id="budgetNote" placeholder="Retorno combinado, validade ou próximo contato"></textarea></div></div><p class="disclaimer">O valor registrado é uma proposta comercial. O protótipo ainda não calcula materiais, impostos ou margem automaticamente.</p>`,`<button class="btn" data-close="true">Cancelar</button><button class="btn primary" id="saveBudget" ${clients?"":"disabled"}>Salvar orçamento</button>`);
+ document.getElementById("saveBudget").onclick=()=>{
+  const clientId=document.getElementById("budgetClient").value,projectName=document.getElementById("budgetProject").value.trim(),amount=Number(document.getElementById("budgetAmount").value),date=document.getElementById("budgetDate").value;
+  if(!clientId||!projectName||amount<=0||!date)return showToast("Preencha cliente, projeto, valor e data.");
+  state.budgets.push({id:crypto.randomUUID(),clientId,projectName,amount,date,status:document.getElementById("budgetStatus").value,note:document.getElementById("budgetNote").value.trim()});
+  save();closeModal();render();showToast("Orçamento registrado.");
+ };
+}
+function supplierQuoteLine(index){
+ const categories=["MDF","Dobradiça","Ferragem","Parafuso","Fita de LED","Perfil de LED","Vidro","Serralheria","Outro"];
+ return `<div class="quote-line" data-quote-line><div class="field"><label>Material / especificação *</label><input data-line-description placeholder="Ex.: MDF Carvalho 18 mm" required></div><div class="field"><label>Categoria</label><select data-line-category>${categories.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div><div class="field"><label>Quantidade</label><input data-line-quantity type="number" min="0.01" step="0.01" value="1"></div><div class="field"><label>Unidade</label><input data-line-unit value="un" placeholder="chapa, un, m, m²"></div><div class="field"><label>Preço unitário (R$) *</label><input data-line-cost type="number" min="0.01" step="0.01" placeholder="0,00" required></div><button class="btn small quote-line-remove" type="button" data-remove-line aria-label="Remover material ${index+1}">Remover</button></div>`;
+}
+function openSupplierQuoteModal(){
+ modal("Registrar cotação de material","Guarde os valores recebidos; o acréscimo de 20% é calculado automaticamente.",`<div class="form-grid">${field("Fornecedor","supplierName","Nome da loja ou fornecedor","text",true)}${field("Data da cotação","supplierDate","","date",true,todayISO())}${field("Região de fornecimento","supplierRegion","Rio de Janeiro/RJ","text",false,"Rio de Janeiro/RJ")}<div class="field full"><label for="supplierPdfFile">PDF recebido (referência)</label><input id="supplierPdfFile" type="file" accept="application/pdf"><small>Este protótipo salva o nome do PDF. A leitura automática e o armazenamento do arquivo serão adicionados com o serviço de IA e o banco compartilhado.</small></div><div class="field full">${field("Link da cotação ou produto","supplierSource","https://...","url")}</div></div><div class="section-head" style="margin-top:18px"><div><h3 style="margin:0">Itens cotados</h3><div class="project-sub">Digite os valores que aparecem na cotação.</div></div><button class="btn small" type="button" id="addQuoteLine">＋ Adicionar item</button></div><div id="supplierQuoteLines">${supplierQuoteLine(0)}</div><div class="quote-total" id="supplierQuoteTotal">Total-base: ${money(0)} · com ${MATERIAL_BUFFER_PERCENT}%: ${money(0)}</div><p class="disclaimer">O preço-base ficará preservado. Os ${MATERIAL_BUFFER_PERCENT}% são um acréscimo de orçamento sobre cada insumo, não a margem final da obra.</p>`,`<button class="btn" data-close="true">Cancelar</button><button class="btn primary" id="saveSupplierQuote">Salvar cotação</button>`);
+ const lines=document.getElementById("supplierQuoteLines");
+ const updateTotal=()=>{let total=0;lines.querySelectorAll("[data-quote-line]").forEach(row=>{total+=(Number(row.querySelector("[data-line-quantity]").value)||0)*(Number(row.querySelector("[data-line-cost]").value)||0);});document.getElementById("supplierQuoteTotal").textContent=`Total-base: ${money(total)} · com ${MATERIAL_BUFFER_PERCENT}%: ${money(total*(1+MATERIAL_BUFFER_PERCENT/100))}`;};
+ document.getElementById("addQuoteLine").onclick=()=>{lines.insertAdjacentHTML("beforeend",supplierQuoteLine(lines.querySelectorAll("[data-quote-line]").length));updateTotal();};
+ lines.addEventListener("input",updateTotal);lines.addEventListener("change",updateTotal);
+ lines.addEventListener("click",e=>{const button=e.target.closest("[data-remove-line]");if(!button)return;if(lines.querySelectorAll("[data-quote-line]").length<=1)return showToast("A cotação precisa ter pelo menos um item.");button.closest("[data-quote-line]").remove();updateTotal();});
+ document.getElementById("saveSupplierQuote").onclick=()=>{
+  const supplier=document.getElementById("supplierName").value.trim(),date=document.getElementById("supplierDate").value,region=document.getElementById("supplierRegion").value.trim(),file=document.getElementById("supplierPdfFile").files[0],documentName=file?.name||"",sourceUrl=safeHttpUrl(document.getElementById("supplierSource").value.trim());
+  const items=[...lines.querySelectorAll("[data-quote-line]")].map(row=>({description:row.querySelector("[data-line-description]").value.trim(),category:row.querySelector("[data-line-category]").value,quantity:Number(row.querySelector("[data-line-quantity]").value),unit:row.querySelector("[data-line-unit]").value.trim()||"un",unitCost:Number(row.querySelector("[data-line-cost]").value)}));
+  if(!supplier||!date)return showToast("Informe fornecedor e data da cotação.");
+  if(items.some(x=>!x.description||x.quantity<=0||x.unitCost<=0))return showToast("Preencha descrição, quantidade e preço de cada item.");
+  const duplicate=(state.supplierQuotes||[]).some(q=>documentName&&q.documentName===documentName&&q.supplier.toLowerCase()===supplier.toLowerCase()&&q.date===date);
+  if(duplicate)return showToast("Esse PDF, fornecedor e data já estão registrados.");
+  state.supplierQuotes.push({id:crypto.randomUUID(),supplier,region,date,documentName,sourceUrl,items,createdAt:new Date().toISOString()});
+  save();closeModal();currentView="quotes";render();showToast("Cotação registrada; preços-base e acréscimo salvos.");
+ };
 }
 function openProjectModal(){
  const clientOptions=state.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");

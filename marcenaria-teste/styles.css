@@ -11,3 +11,11 @@
 #app:has(#quickSignature) .note-box,#app:has(#quickSignature) .signature-box p{font-size:13px;line-height:1.6}
 #app:has(#quickSignature) .signature-canvas{width:100%;height:130px;display:block;background:#fff;border:1px solid #cfd9d2;border-radius:8px;touch-action:none;margin-top:10px}
 #app:has(#quickSignature) .signature-box .btn{height:42px;font-size:13px}
+/* Orçamentos e histórico de materiais */
+.quote-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.quote-line{display:grid;grid-template-columns:minmax(170px,2fr) minmax(120px,1fr) minmax(90px,.65fr) minmax(90px,.7fr) minmax(130px,1fr) auto;gap:8px;align-items:end;padding:12px 0;border-bottom:1px solid #edf1ee}
+.quote-line .field label{font-size:9px}
+.quote-line-remove{align-self:end;margin-bottom:1px}
+.quote-total{margin-top:12px;padding:12px;border-radius:8px;background:#f3f7f4;color:#315c47;font-size:12px;font-weight:700;text-align:right}
+@media(max-width:900px){.quote-line{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-line-remove{justify-self:start}}
+@media(max-width:700px){.quote-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-line{grid-template-columns:1fr}.quote-line-remove{width:max-content}.quote-total{text-align:left}}
