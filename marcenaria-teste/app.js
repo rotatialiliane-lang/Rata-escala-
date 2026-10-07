@@ -65,6 +65,7 @@ function showToast(msg){const el=document.getElementById("toast");el.textContent
 function initials(name="?"){return name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();}
 function render(){
   const labels={dashboard:"Visão geral",projects:"Projetos",production:"Produção",assembly:"Montagem e entrega",agenda:"Agenda",clients:"Clientes",quotes:"Orçamentos e materiais",finance:"Financeiro"};
+  document.querySelectorAll(".nav-item[data-view]").forEach(item=>item.classList.toggle("active",item.dataset.view===currentView));
   document.getElementById("crumb").textContent=labels[currentView]||"Projeto";
   document.getElementById("projectCount").textContent=state.projects.length;
   document.getElementById("today").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"short"});
