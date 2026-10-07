@@ -1,5 +1,5 @@
-const CACHE = "oficina-shell-v11-propostas";
-const FILES = ["./", "./index.html", "./styles.css", "./app.js?v=20261007-propostas", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const CACHE = "oficina-shell-v12-propostas2";
+const FILES = ["./", "./index.html", "./styles.css", "./app.js?v=20261007-propostas2", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", event => event.waitUntil((async () => { const cache = await caches.open(CACHE); await cache.addAll(FILES); await self.skipWaiting(); })()));
 self.addEventListener("activate", event => event.waitUntil((async () => { const keys = await caches.keys(); await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))); await self.clients.claim(); })()));
 self.addEventListener("fetch", event => {
