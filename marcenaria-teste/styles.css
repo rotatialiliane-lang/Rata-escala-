@@ -17,12 +17,12 @@
 .agenda-list{display:grid;gap:0}.agenda-list>.section-head{margin-bottom:7px}.agenda-item{display:grid;grid-template-columns:116px minmax(0,1fr) auto;gap:14px;align-items:start;padding:14px 2px;border-top:1px solid #edf1ee}.agenda-date{display:grid;gap:5px;color:var(--green)}.agenda-date strong{font-size:11px}.agenda-date span{font:700 14px Manrope}.agenda-copy{min-width:0}.agenda-title-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.agenda-title-row>strong{font-size:12px}.agenda-meta{font-size:10px;color:#718078;margin-top:5px}.agenda-copy p{font-size:10px;line-height:1.45;color:#748078;margin:7px 0 0;white-space:pre-wrap}.agenda-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.danger-text{color:#ae5a4b}.agenda-item.cancelled{opacity:.65}.agenda-item.cancelled .agenda-title-row>strong{text-decoration:line-through}
 @media(max-width:700px){.agenda-item{grid-template-columns:72px minmax(0,1fr);gap:9px}.agenda-actions{grid-column:1/-1;justify-content:flex-start;padding-left:80px}.agenda-date strong{font-size:9px}.agenda-date span{font-size:13px}}
 /* Orçamentos e histórico de materiais */
-.quote-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.quote-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}
 .quote-line{display:grid;grid-template-columns:minmax(170px,2fr) minmax(120px,1fr) minmax(90px,.65fr) minmax(90px,.7fr) minmax(130px,1fr) auto;gap:8px;align-items:end;padding:12px 0;border-bottom:1px solid #edf1ee}
 .quote-line .field label{font-size:9px}
 .quote-line-remove{align-self:end;margin-bottom:1px}
 .quote-total{margin-top:12px;padding:12px;border-radius:8px;background:#f3f7f4;color:#315c47;font-size:12px;font-weight:700;text-align:right}
-@media(max-width:900px){.quote-line{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-line-remove{justify-self:start}}
+@media(max-width:900px){.quote-line{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-line-remove{justify-self:start}.quote-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.quote-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-line{grid-template-columns:1fr}.quote-line-remove{width:max-content}.quote-total{text-align:left}}
 .ai-consent{display:flex;grid-template-columns:none;align-items:flex-start;gap:9px;font-size:11px;line-height:1.5;color:#59665e}
 .ai-consent input{margin:2px 0 0;accent-color:var(--green2);flex:none}
