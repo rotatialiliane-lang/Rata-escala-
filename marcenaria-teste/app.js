@@ -225,6 +225,135 @@ function renderQuickAssembly(){
   <div class="signature-box"><p>Peça ao cliente para assinar na tela após conferir os itens. A assinatura e as marcações ficam salvas somente neste aparelho.</p><div class="field"><label for="quickSigner">Nome do cliente</label><input id="quickSigner" data-quick-field="signer" placeholder="Nome de quem acompanhou a conferência" value="${esc(q.signer)}"></div><canvas id="quickSignature" class="signature-canvas" aria-label="Campo para assinatura do cliente"></canvas><div class="signature-row" style="justify-content:space-between;margin-top:8px"><span class="project-sub">Assinatura do cliente</span><button class="btn small" data-action="clear-quick-signature">Limpar assinatura</button></div><div class="actions" style="margin-top:14px"><button class="btn primary" data-action="complete-quick">Registrar obra concluída</button></div>${q.completedAt?`<div class="project-sub" style="margin-top:11px">Finalização registrada em ${dateBR(q.completedAt)} · ${esc(q.signer)}</div>`:""}</div></div>
   <p class="disclaimer">A assinatura capturada aqui é um registro de aceite no aparelho. Para validade e armazenamento formal, será necessária integração de assinatura eletrônica.</p>`;
 }
+function payrollReportCard(){
+  const prior=new Date(`${todayISO()}T12:00:00`);
+  prior.setDate(prior.getDate()-7);
+  const oldWeek=workWeekBounds([prior.getFullYear(),String(prior.getMonth()+1).padStart(2,"0"),String(prior.getDate()).padStart(2,"0")].join("-")).start;
+  const employees=state.employees||[];
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="section-head"><div><h2>Relatório semanal da equipe</h2><div class="project-sub">Diárias, dias trabalhados, horas extras, vales, pagamentos e saldo. A semana passada já vem selecionada.</div></div></div>
+    <div class="form-grid">
+      <div class="field"><label for="payrollReportEmployee">Funcionário</label><select id="payrollReportEmployee"><option value="todos">Toda a equipe</option>${employees.map(e=>`<option value="${esc(e.id)}" ${workLogEmployeeFilter===e.id?"selected":""}>${esc(e.name)}</option>`).join("")}</select></div>
+      <div class="field"><label for="payrollReportDate">Escolha um dia da semana</label><input id="payrollReportDate" type="date" value="${oldWeek}"><small>Período considerado: segunda-feira a domingo</small></div>
+      <div class="field" style="justify-content:end"><label>Exportação</label><button class="btn primary" data-action="export-payroll-week-pdf">Gerar relatório em PDF</button></div>
+    </div>
+    <p class="disclaimer">O relatório usa somente os lançamentos existentes neste aparelho. Na janela aberta, escolha “Salvar como PDF” ou “Imprimir”.</p>
+  </div>`;
+}
+
+function payrollReportPayments(employeeId,start,end){
+  const items=(state.employeePayments||[]).filter(p=>p.employeeId===employeeId).map(p=>{
+    const valid=p.periodStart&&p.periodEnd&&p.periodEnd>=p.periodStart;
+    const overlaps=valid&&p.periodStart<=end&&p.periodEnd>=start;
+    const within=valid&&p.periodStart>=start&&p.periodEnd<=end;
+    const noPeriod=!valid&&p.date>=start&&p.date<=end;
+    if(!overlaps&&!noPeriod)return null;
+    return {...p,reportAmount:within||noPeriod?Math.max(0,Number(p.amount)||0):0,unallocated:overlaps&&!within};
+  }).filter(Boolean).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  return items;
+}
+
+function payrollReportData(employee,date){
+  const {start,end}=workWeekBounds(date);
+  const logs=(state.workLogs||[]).filter(l=>l.employeeId===employee.id&&l.date>=start&&l.date<=end).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const timeByLog=weeklyTimeByLog(state.workLogs||[]);
+  const adjustments=(state.employeeAdjustments||[]).filter(a=>a.employeeId===employee.id&&a.date>=start&&a.date<=end).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const advances=(state.employeeAdvances||[]).filter(a=>a.employeeId===employee.id&&a.date>=start&&a.date<=end).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const payments=payrollReportPayments(employee.id,start,end);
+  const lines=logs.map(l=>{
+    const amounts=workLogAmounts(l),compHours=logRegularExtraHours(l,timeByLog),compPay=logRegularExtraPay(l,timeByLog),overtimeHours=logOvertimeHours(l,timeByLog),overtimePay=logOvertimePay(l,timeByLog);
+    return {log:l,hours:amounts.hours,base:amounts.base+compPay,compHours,overtimeHours,overtimePay,total:amounts.total+compPay+(employee.overtimeMode==="weekly"?overtimePay:0)};
+  });
+  const days=new Set(logs.map(l=>l.date)).size;
+  const hours=lines.reduce((s,l)=>s+l.hours,0);
+  const compHours=lines.reduce((s,l)=>s+l.compHours,0);
+  const overtimeHours=lines.reduce((s,l)=>s+l.overtimeHours,0)+adjustments.filter(a=>a.type==="overtime").reduce((s,a)=>s+(Number(a.hours)||0),0);
+  const base=lines.reduce((s,l)=>s+l.base,0);
+  const overtimePay=lines.reduce((s,l)=>s+l.overtimePay,0)+adjustments.filter(a=>a.type==="overtime").reduce((s,a)=>s+employeeAdjustmentAmount(a),0);
+  const adjTotal=adjustments.reduce((s,a)=>s+employeeAdjustmentAmount(a),0);
+  const gross=employeeAccruedForWeek(employee.id,start,end)+adjTotal;
+  const passageAndOther=Math.max(0,gross-base-overtimePay);
+  const vales=advances.reduce((s,a)=>s+Math.max(0,Number(a.amount)||0),0);
+  const paid=payments.reduce((s,p)=>s+p.reportAmount,0);
+  const unallocated=payments.reduce((s,p)=>s+(p.unallocated?Math.max(0,Number(p.amount)||0):0),0);
+  const balance=gross-vales-paid;
+  const closed=payments.some(p=>p.weekClosed&&p.periodStart===start&&p.periodEnd===end);
+  const duplicates=logs.length-days;
+  const status=closed?(balance>0.005?"Fechada com saldo pendente":"Semana fechada"):(balance>0.005?"Em aberto":"Sem saldo pendente");
+  return {employee,start,end,logs,lines,days,hours,compHours,overtimeHours,base,overtimePay,passageAndOther,adjustments,advances,payments,gross,vales,paid,unallocated,balance,closed,status,duplicates};
+}
+
+function payrollReportEmployeeHtml(r){
+  const fmt=n=>(Number(n)||0).toFixed(2).replace(".",",");
+  const cell=(title,value)=>`<div class="stat"><span>${title}</span><strong>${value}</strong></div>`;
+  const noRows=(columns,label)=>`<tr><td colspan="${columns}" class="muted">${label}</td></tr>`;
+  const rows=r.lines.map(l=>`<tr><td>${dateBR(l.log.date)}</td><td>${esc(l.log.clockIn||"—")} - ${esc(l.log.clockOut||"—")}</td><td class="number">${fmt(l.hours)} h</td><td class="number">${fmt(l.overtimeHours)} h</td><td class="number">${money(l.base)}</td><td class="number">${money(l.overtimePay)}</td><td class="number">${money(l.total)}</td><td>${esc(l.log.projectId?projectLabel(l.log.projectId):"Geral")}</td></tr>`).join("");
+  const adjustments=r.adjustments.map(a=>`<tr><td>${dateBR(a.date)}</td><td>${esc(a.type==="overtime"?"Hora extra avulsa":a.type==="passage"?"Passagem extra":"Bônus / adicional")}</td><td>${a.type==="overtime"?`${fmt(a.hours)} h · `:""}${esc(a.note||"—")}</td><td class="number">${money(employeeAdjustmentAmount(a))}</td></tr>`).join("");
+  const vales=r.advances.map(a=>`<tr><td>${dateBR(a.date)}</td><td>${esc(a.note||"Vale / adiantamento")}</td><td class="number">${money(a.amount)}</td></tr>`).join("");
+  const payments=r.payments.map(p=>`<tr><td>${dateBR(p.date)}</td><td>${p.periodStart&&p.periodEnd?`${dateBR(p.periodStart)} a ${dateBR(p.periodEnd)}`:"Sem período informado"}${p.unallocated?` <em>(abrange mais de uma semana)</em>`:""}</td><td>${esc(p.note||p.weekClosed?"Fechamento semanal":"Pagamento")}</td><td class="number">${money(p.amount)}</td><td class="number">${p.unallocated?"Não alocado":money(p.reportAmount)}</td></tr>`).join("");
+  return `<section class="employee-section">
+    <div class="person"><div><h2>${esc(r.employee.name)}</h2><p>${esc(r.employee.role||"Profissional")} · Diária cadastrada: ${money(r.employee.dailyRate)} · ${r.employee.overtimeMode==="daily"?"Horas extras por jornada diária":`Compensação semanal (limite ${fmt(r.employee.weeklyHoursLimit||44)} h)`}</p></div><span class="status">${r.status}</span></div>
+    <div class="stats">${cell("Dias trabalhados",r.days)}${cell("Horas trabalhadas",fmt(r.hours)+" h")}${cell("Horas extras",fmt(r.overtimeHours)+" h")}${cell("Horas compensadas",fmt(r.compHours)+" h")}${cell("Total bruto",money(r.gross))}${cell("Vales descontados",money(r.vales))}${cell("Já pago",money(r.paid))}${cell("Falta pagar",money(Math.max(0,r.balance)))}</div>
+    <h3>Detalhamento dos dias trabalhados</h3>
+    <table><thead><tr><th>Data</th><th>Entrada / saída</th><th>Horas</th><th>Horas extras</th><th>Diária / compensação</th><th>Valor de HE</th><th>Total do dia</th><th>Obra</th></tr></thead><tbody>${rows||noRows(8,"Nenhum dia trabalhado registrado nesta semana.")}</tbody></table>
+    <div class="breakdown"><span>Diárias + horas compensadas: <b>${money(r.base)}</b></span><span>Valor total das horas extras: <b>${money(r.overtimePay)}</b></span><span>Passagens e outros adicionais: <b>${money(r.passageAndOther)}</b></span></div>
+    <h3>Adicionais lançados</h3>
+    <table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${adjustments||noRows(4,"Nenhum adicional avulso registrado.")}</tbody></table>
+    <h3>Vales e descontos</h3>
+    <table><thead><tr><th>Data</th><th>Descrição do vale descontado</th><th>Valor descontado</th></tr></thead><tbody>${vales||noRows(3,"Nenhum vale registrado no período.")}</tbody></table>
+    <h3>Pagamentos referentes a esta semana</h3>
+    <table><thead><tr><th>Pago em</th><th>Período informado</th><th>Observação</th><th>Valor do lançamento</th><th>Abatido nesta semana</th></tr></thead><tbody>${payments||noRows(5,"Nenhum pagamento associado ao período.")}</tbody></table>
+    <div class="total-row"><span>Bruto <b>${money(r.gross)}</b></span><span>− Vales <b>${money(r.vales)}</b></span><span>− Pagamentos <b>${money(r.paid)}</b></span><span>= Saldo a pagar <strong>${money(Math.max(0,r.balance))}</strong></span></div>
+    ${r.balance<-.005?`<p class="warning">Atenção: ${money(-r.balance)} pagos/adiantados além do valor apurado nesta semana. Confira a compensação com períodos seguintes.</p>`:""}
+    ${r.unallocated>0?`<p class="warning">Existem ${money(r.unallocated)} em pagamentos que abrangem mais de uma semana. Eles foram listados, mas não abatidos automaticamente para evitar contagem duplicada. Confira a distribuição antes de considerar o saldo definitivo.</p>`:""}
+    ${r.duplicates>0?`<p class="warning">Atenção: existem ${r.duplicates} lançamento(s) repetido(s) em datas já registradas para este funcionário. Confira antes de efetuar pagamentos.</p>`:""}
+  </section>`;
+}
+
+function exportPayrollWeeklyPdf(){
+  const employeeId=document.getElementById("payrollReportEmployee")?.value||"todos";
+  const date=document.getElementById("payrollReportDate")?.value;
+  if(!date||!(/^\d{4}-\d{2}-\d{2}$/.test(date)))return showToast("Escolha uma data válida para o relatório.");
+  const employees=(state.employees||[]).filter(e=>employeeId==="todos"||e.id===employeeId);
+  if(!employees.length)return showToast("Cadastre ou selecione um funcionário para gerar o relatório.");
+  const {start,end}=workWeekBounds(date);
+  const reports=employees.map(e=>payrollReportData(e,start));
+  const sum=field=>reports.reduce((s,r)=>s+(Number(r[field])||0),0);
+  const title=`WVS Interiores | Relatório semanal | ${dateBR(start)} a ${dateBR(end)}`;
+  const current=new Date().toLocaleString("pt-BR");
+  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${esc(title)}</title>
+  <style>
+   @page {size:A4 landscape;margin:12mm}
+   *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#18312b;background:white;margin:0;font-size:10px;line-height:1.4}
+   header{border-bottom:3px solid #173d35;padding:0 0 12px;margin-bottom:18px}header h1{font-size:20px;margin:0 0 3px}header p{margin:3px 0;color:#4f6860}
+   .employee-section{break-before:page}.employee-section:first-of-type{break-before:auto}
+   .person{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:10px 0}.person h2{margin:0;font-size:16px}.person p{margin:3px 0;color:#51645f}
+   .status{border:1px solid #b8cbc3;border-radius:15px;padding:5px 10px;font-weight:bold}
+   .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
+   .stat{border:1px solid #dbe7e1;border-radius:6px;padding:8px;min-height:50px}.stat span{display:block;color:#49665d;font-size:9px}.stat strong{font-size:13px}
+   h3{font-size:11px;background:#ebf3ee;border-left:3px solid #173d35;padding:5px 8px;margin:14px 0 5px}
+   table{width:100%;border-collapse:collapse;font-size:9px}th{background:#f3f6f4;text-align:left;color:#294a40;font-weight:bold}
+   th,td{padding:6px;border-bottom:1px solid #e0e9e4;vertical-align:top}.number{text-align:right;white-space:nowrap}.muted{color:#627970}
+   .breakdown{display:flex;justify-content:space-between;gap:10px;margin:9px 0;color:#3f5e52}
+   .total-row{border-top:2px solid #173d35;background:#f2f7f4;padding:10px 8px;display:flex;justify-content:space-between;gap:10px;margin-top:12px}
+   .total-row strong{font-size:13px}.warning{color:#8b4600;background:#fff7e8;border-left:3px solid #d39221;padding:6px 8px}
+   .grand{padding:12px;background:#ebf3ee;border:1px solid #bed4c9;margin-bottom:14px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+   footer{font-size:9px;color:#617970;padding:10px 0;border-top:1px solid #dce7e0;margin-top:14px}
+   .printbar{display:flex;justify-content:space-between;align-items:center;background:#e9f1ed;padding:10px 14px;margin-bottom:12px}
+   .printbar button{border:0;background:#173d35;color:white;padding:9px 18px;font-size:12px;border-radius:5px;cursor:pointer}
+   @media print {.printbar{display:none} .employee-section{break-before:page} .employee-section:first-of-type{break-before:auto}}
+   </style></head><body><div class="printbar"><span>Relatório pronto para impressão ou PDF</span><button onclick="window.print()">Imprimir / Salvar em PDF</button></div>
+   <header><h1>WVS INTERIORES</h1><p><b>Relatório semanal de funcionários, diárias e horas extras</b></p><p>Período de ${dateBR(start)} a ${dateBR(end)} · Emitido em ${esc(current)} · ${employees.length} funcionário(s)</p></header>
+   ${reports.length>1?`<div class="grand"><b>RESUMO DA EQUIPE</b><span>Dias: <b>${sum("days")}</b></span><span>Horas extras: <b>${sum("overtimeHours").toFixed(2).replace(".",",")} h</b></span><span>Bruto: <b>${money(sum("gross"))}</b></span><span>Vales: <b>${money(sum("vales"))}</b></span><span>Pago: <b>${money(sum("paid"))}</b></span><span>A pagar: <b>${money(reports.reduce((s,r)=>s+Math.max(0,r.balance),0))}</b></span></div>`:""}
+   ${reports.map(payrollReportEmployeeHtml).join("")}
+   <footer>Relatório gerencial gerado a partir dos lançamentos locais deste dispositivo. Vales são descontos; pagamentos são quitações. Valores informativos, sujeitos à conferência; não substitui recibo de pagamento nem folha oficial.</footer>
+   </body></html>`;
+  const win=window.open("","_blank");
+  if(!win)return showToast("Autorize a abertura de nova aba para salvar o relatório em PDF.");
+  win.document.open();win.document.write(html);win.document.close();win.focus();
+  setTimeout(()=>{try{win.print();}catch(e){}},400);
+}
+
 function renderEmployees(){
  const employees=state.employees||[],logs=state.workLogs||[],adjustments=state.employeeAdjustments||[],advances=state.employeeAdvances||[],payments=state.employeePayments||[],month=workLogMonthFilter==="todos"?todayISO().slice(0,7):workLogMonthFilter,monthLogs=logs.filter(l=>(l.date||"").slice(0,7)===month),monthStart=`${month}-01`,monthEnd=`${month}-31`,monthTotal=employeeAccruedForLogs(monthLogs)+employeeAdjustmentsTotal(monthStart,monthEnd)+payrollForecastForMonth(month),currentWeek=workWeekBounds(todayISO()),weekTotal=employees.reduce((sum,e)=>sum+employeeAccruedForWeek(e.id,currentWeek.start,currentWeek.end)+employeeAdjustmentsTotal(currentWeek.start,currentWeek.end,e.id),0);
  const balanceFor=e=>employeeAccruedForLogs(logs.filter(l=>l.employeeId===e.id))+employeeAdjustmentsTotal("0000-01-01","9999-12-31",e.id)-advances.filter(a=>a.employeeId===e.id).reduce((sum,a)=>sum+Number(a.amount||0),0)-payments.filter(p=>p.employeeId===e.id).reduce((sum,p)=>sum+Number(p.amount||0),0);
@@ -233,6 +362,7 @@ function renderEmployees(){
  const employeeWeeks=workLogEmployeeFilter==="todos"?[]:[...new Set([...employeeLogs.map(l=>workWeekBounds(l.date).start),...adjustments.filter(x=>x.employeeId===workLogEmployeeFilter).map(x=>workWeekBounds(x.date).start)])].sort((a,b)=>b.localeCompare(a)).map(start=>{const {end}=workWeekBounds(start),weekLogs=employeeLogs.filter(l=>l.date>=start&&l.date<=end),weekAdjustments=employeeAdjustmentsTotal(start,end,workLogEmployeeFilter),gross=employeeAccruedForWeek(workLogEmployeeFilter,start,end)+weekAdjustments,weekAdvances=advances.filter(a=>a.employeeId===workLogEmployeeFilter&&a.date>=start&&a.date<=end).reduce((s,a)=>s+Number(a.amount||0),0),weekPayments=payments.filter(p=>p.employeeId===workLogEmployeeFilter&&(p.weekClosed?p.periodStart===start&&p.periodEnd===end:p.date>=start&&p.date<=end)).reduce((s,p)=>s+Number(p.amount||0),0),closed=payments.some(p=>p.employeeId===workLogEmployeeFilter&&p.weekClosed&&p.periodStart===start&&p.periodEnd===end),due=Math.max(0,gross-weekAdvances-weekPayments),projects=[...new Set([...weekLogs.map(l=>l.projectId),...adjustments.filter(x=>x.employeeId===workLogEmployeeFilter&&x.date>=start&&x.date<=end).map(x=>x.projectId)].filter(Boolean))];return {start,end,weekLogs,gross,weekAdjustments,weekAdvances,weekPayments,closed,due,projectId:projects.length===1?projects[0]:null};});
  const moneyEvents=[...advances.map(x=>({...x,kind:"Vale"})),...payments.map(x=>({...x,kind:x.weekClosed?"Semana fechada":"Pagamento"}))].filter(x=>workLogEmployeeFilter==="todos"||x.employeeId===workLogEmployeeFilter).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,50),futureForecasts=(state.payrollForecasts||[]).filter(f=>f.status==="planned"&&(f.forecastEndDate||f.weekEnd)>=todayISO()&&(workLogEmployeeFilter==="todos"||f.employeeId===workLogEmployeeFilter)).sort((a,b)=>a.weekStart.localeCompare(b.weekStart)),visibleAdjustments=adjustments.filter(x=>(workLogEmployeeFilter==="todos"||x.employeeId===workLogEmployeeFilter)&&(workLogMonthFilter==="todos"||(x.date||"").slice(0,7)===workLogMonthFilter)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
  return `${pageHead("EQUIPE E PAGAMENTOS","Funcionários","Cadastre valores e jornada, registre cada dia trabalhado e acompanhe adicionais, vales e pagamentos.",`<button class="btn" data-action="new-employee-adjustment">＋ Adicional</button><button class="btn" data-action="new-advance">＋ Lançar vale</button><button class="btn" data-action="new-work-log">＋ Registrar dia</button><button class="btn secondary" data-action="batch-work-log">▦ Marcar vários dias</button><button class="btn secondary" data-action="new-payroll-forecast">◷ Prever mão de obra</button><button class="btn primary" data-action="new-employee">＋ Cadastrar funcionário</button>`)}
+ ${payrollReportCard()}
  <div class="cards metrics employee-summary"><div class="card"><div class="metric-top">MÃO DE OBRA PREVISTA · MÊS</div><div class="metric-value">${money(monthTotal)}</div><div class="metric-sub">Dias registrados + semanas futuras programadas</div></div><div class="card"><div class="metric-top">ACUMULADO DA SEMANA</div><div class="metric-value">${money(weekTotal)}</div><div class="metric-sub">Desde segunda-feira, incluindo passagem</div></div><div class="card"><div class="metric-top">FUNCIONÁRIOS ATIVOS</div><div class="metric-value">${employees.filter(e=>e.active!==false).length}</div><div class="metric-sub">Cadastros na equipe</div></div><div class="card"><div class="metric-top">SALDO A PAGAR</div><div class="metric-value">${money(Math.max(0,employees.reduce((sum,e)=>sum+balanceFor(e),0)))}</div><div class="metric-sub">Previsão líquida de vales e pagamentos</div></div></div>
  <div class="note-box"><b>Regra de cálculo:</b> você pode contar extras após a jornada diária ou usar compensação semanal. No modo semanal, horas acima da jornada diária contam como compensação regular até o limite semanal; por padrão, 44h. Só o que ultrapassar esse limite recebe o adicional. Ajuste o limite conforme a jornada combinada.</div>
  <div class="card employee-card-list"><div class="section-head"><div><h2>Equipe cadastrada</h2><div class="project-sub">A passagem pode ser configurada por dia, semana, quinzena ou mês.</div></div></div>${cards}</div>
@@ -338,6 +468,7 @@ function action(name,id,element){
  if(name==="new-client")return openClientModal();if(name==="new-project")return openProjectModal();if(name==="new-transaction")return openTransactionModal();
  if(name==="new-budget")return openBudgetModal();if(name==="convert-budget")return openBudgetConversionModal(id);if(name==="budget-history")return openBudgetHistory(id);if(name==="new-supplier-quote")return openSupplierQuoteModal();if(name==="analyze-pdf")return openPdfAnalyzeModal();
  if(name==="new-fixed-cost")return openFixedCostModal();if(name==="edit-fixed-cost")return openFixedCostModal(id);
+ if(name==="export-payroll-week-pdf")return exportPayrollWeeklyPdf();
  if(name==="new-employee")return openEmployeeModal();if(name==="edit-employee")return openEmployeeModal(id);if(name==="view-employee-work"){workLogEmployeeFilter=id;workLogMonthFilter="todos";render();document.getElementById("workLogEmployee")?.scrollIntoView({behavior:"smooth",block:"center"});return;}if(name==="new-employee-adjustment")return openEmployeeAdjustmentModal();if(name==="delete-employee-adjustment"){if(!confirm("Excluir este adicional? O saldo e o DRE serão recalculados."))return;state.employeeAdjustments=(state.employeeAdjustments||[]).filter(x=>x.id!==id);save();render();return showToast("Adicional removido; totais atualizados.");}if(name==="new-work-log")return openWorkLogModal();if(name==="edit-work-log")return openWorkLogModal(id);if(name==="batch-work-log")return openBatchWorkLogModal();if(name==="new-payroll-forecast")return openPayrollForecastModal();if(name==="delete-payroll-forecast"){if(!confirm("Remover esta semana da previsão de mão de obra?"))return;state.payrollForecasts=(state.payrollForecasts||[]).filter(f=>f.id!==id);save();render();return showToast("Semana removida da previsão.");}if(name==="new-advance")return openAdvanceModal();if(name==="new-employee-payment")return openEmployeePaymentModal();if(name==="close-employee-week"){const start=element?.dataset.start,end=element?.dataset.end,employee=state.employees.find(e=>e.id===id),weekLogs=(state.workLogs||[]).filter(l=>l.employeeId===id&&l.date>=start&&l.date<=end),adjustmentProjects=(state.employeeAdjustments||[]).filter(x=>x.employeeId===id&&x.date>=start&&x.date<=end).map(x=>x.projectId),projectIds=[...new Set([...weekLogs.map(l=>l.projectId),...adjustmentProjects].filter(Boolean))];return openEmployeePaymentModal({employeeId:id,periodStart:start,periodEnd:end,amount:Number(element?.dataset.amount)||0,projectId:projectIds.length===1?projectIds[0]:"",weekClose:true});}if(name==="delete-work-log"){if(!confirm("Excluir este dia trabalhado? O valor previsto e os cálculos serão atualizados."))return;state.workLogs=state.workLogs.filter(l=>l.id!==id);save();render();return showToast("Dia removido; o previsto foi recalculado.");}
  if(name==="new-appointment")return openAppointmentModal();if(name==="edit-appointment")return openAppointmentModal(id);
  if(name==="schedule-project")return openAppointmentModal(null,id);
