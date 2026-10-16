@@ -46,3 +46,39 @@
 .batch-day.future-day{background:#fafafa;opacity:.55}
 .employee-actions{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap}.employee-actions .table-action{white-space:nowrap}.employee-actions .danger-action{color:#9d4d43}.employee-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.employee-filters .month-picker{display:flex;align-items:center;gap:7px}.week-close-list{border:1px solid var(--line);background:#fbfcfb;border-radius:10px;padding:13px;margin:0 0 14px}.week-close-list h3{font-size:12px;margin:0 0 8px;color:#33463a}.week-close-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,auto) auto;gap:12px;align-items:center;border-top:1px solid #e9eeea;padding:10px 2px}.week-close-total{display:grid;gap:3px;text-align:right;font-size:9px;color:#849087}.week-close-total b{font-size:13px;color:#33463a}.employee-card .employee-actions{min-width:190px}
 @media(max-width:700px){.employee-card{grid-template-columns:minmax(0,1fr) auto;gap:9px}.employee-card .employee-metrics{grid-column:1/-1;grid-row:2;display:flex;justify-content:space-between}.employee-card .employee-actions{grid-column:1/-1;grid-row:3;justify-content:flex-start}.employee-filters{width:100%;justify-content:space-between}.employee-filters .month-picker{flex:1;min-width:145px;display:block}.employee-filters .filter{width:100%;margin-top:4px}.week-close-row{grid-template-columns:1fr;gap:8px}.week-close-total{text-align:left}.week-close-row>div:last-child{justify-self:start}}
+
+/* Visualização simples de diárias, vales e pagamentos */
+.simple-payroll-help{border:1px solid #d8e6dc;background:#f1f7f3;color:#254c3d;border-radius:10px;padding:12px 15px;margin-bottom:11px;font-size:12px;line-height:1.55}
+.simple-payroll-options,.simple-payroll-rules{margin-bottom:14px;font-size:12px;color:#456052}
+.simple-payroll-options summary,.simple-payroll-rules summary{font-weight:700;cursor:pointer;padding:8px 1px}
+.simple-payroll-options[open] .actions{margin:9px 0;justify-content:flex-start;flex-wrap:wrap}
+.simple-payroll-rules .note-box{margin-top:7px}
+.simple-payroll-panel{margin:0 0 14px;scroll-margin-top:75px}
+.simple-payroll-head{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;margin-bottom:15px}
+.simple-payroll-head h2{font-size:18px;font-weight:800;font-family:Manrope,sans-serif;margin:0;color:#203f33}
+.simple-payroll-head p{font-size:12px;margin:6px 0 0;color:#66786d;line-height:1.55}
+.simple-payroll-head .field{min-width:210px;flex-shrink:0}
+.simple-payroll-head .field label{display:block;font-size:11px;font-weight:700;margin-bottom:6px}
+.simple-payroll-head .field select{font-size:13px;max-width:100%;width:100%}
+.simple-payroll-empty{background:#f6f9f7;border:1px dashed #cddcd1;border-radius:9px;padding:18px;color:#56685e;font-size:13px;line-height:1.65}
+.easy-week-list{display:grid;gap:15px}
+.easy-week{border:1px solid #dce8de;border-radius:12px;padding:16px;background:#fff}
+.easy-week-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}
+.easy-week-header b{font-size:14px;color:#273d32}
+.easy-week-hours{font-size:12px;margin-top:5px;color:#718176}
+.easy-week-status{display:inline-flex;align-items:center;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;white-space:normal}
+.easy-week-status.unpaid{background:#fbf2e5;color:#80541b}
+.easy-week-status.paid{background:#eff5f1;color:#30684d}
+.easy-week-calculation{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.easy-week-cell{display:flex;flex-direction:column;gap:5px;min-height:93px;padding:12px;border:1px solid #e4ece7;border-radius:9px;background:#fafcfa;min-width:0}
+.easy-week-cell span{font-weight:700;font-size:11px;color:#52675b}
+.easy-week-cell strong{font:800 17px Manrope,sans-serif;color:#264637;white-space:nowrap}
+.easy-week-cell small{font-size:10px;color:#87958b;line-height:1.4}
+.easy-week-due{border:1px solid #adcab4;background:#edf5ef}
+.easy-week-due strong{font-size:21px;color:#173d35}
+.easy-week-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+.easy-week-actions .btn{font-size:11px;max-width:100%;white-space:normal;text-align:center}
+.easy-week-tip{font-size:11px;color:#63776b}
+.easy-week-warning{background:#fff7e9;border-left:3px solid #c18d32;color:#78521f;padding:9px;font-size:11px;line-height:1.5;margin:12px 0 0}
+@media(max-width:980px){.easy-week-calculation{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.simple-payroll-head{display:block}.simple-payroll-head h2{font-size:16px}.simple-payroll-head .field{margin-top:12px;min-width:0}.easy-week{padding:11px}.easy-week-header{display:block}.easy-week-status{margin-top:10px}.easy-week-calculation{gap:7px}.easy-week-cell{padding:10px;min-height:96px}.easy-week-cell strong{font-size:15px}.easy-week-due strong{font-size:19px}.easy-week-actions .btn{width:100%}.simple-payroll-options[open] .actions{display:flex;gap:7px}.simple-payroll-options[open] .actions .btn{flex:1 1 190px}}
