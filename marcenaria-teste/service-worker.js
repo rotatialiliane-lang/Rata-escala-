@@ -1,5 +1,5 @@
-const CACHE = "oficina-shell-v22-project-edit";
-const FILES = ["./", "./index.html", "./styles.css?v=20261016-pagamento-simples", "./app.js?v=20261021-projetos-editar", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const CACHE = "oficina-shell-v23-project-stages";
+const FILES = ["./", "./index.html", "./styles.css?v=20261016-pagamento-simples", "./app.js?v=20261021-projetos-etapas", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", event => event.waitUntil((async () => { const cache = await caches.open(CACHE); await cache.addAll(FILES); await self.skipWaiting(); })()));
 self.addEventListener("activate", event => event.waitUntil((async () => { const keys = await caches.keys(); await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))); await self.clients.claim(); })()));
 self.addEventListener("fetch", event => {
