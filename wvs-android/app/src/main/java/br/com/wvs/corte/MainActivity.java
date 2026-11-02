@@ -165,7 +165,7 @@ public class MainActivity extends Activity {
         double scale=Math.min(maxW/(double)raw.getWidth(),maxH/(double)raw.getHeight());
         int printWidth=Math.max(8,Math.min(maxW,((int)Math.floor(raw.getWidth()*scale)/8)*8));
         int printHeight=Math.max(1,Math.min(maxH,(int)Math.round(raw.getHeight()*scale)));
-        int offX=(labelWidth-printWidth)/2;
+        int offX=(labelWidth-printWidth)/2 + (int)Math.round(2.0*dpi/25.4); // compensacao horizontal de +2 mm
         int offY=(labelHeight-printHeight)/2;
         Bitmap scaled=Bitmap.createScaledBitmap(raw,printWidth,printHeight,true);
         int row=printWidth/8,total=row*printHeight;
