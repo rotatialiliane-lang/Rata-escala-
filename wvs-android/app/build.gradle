@@ -5,9 +5,9 @@ android {
     defaultConfig {
         applicationId 'br.com.wvs.corte.ajuste'
         minSdk 26
-        targetSdk 33
-        versionCode 9
-        versionName '0.9.0-ajuste-teste'
+        targetSdk 34
+        versionCode 10
+        versionName '0.10.0-android34'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
