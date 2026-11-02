@@ -3,11 +3,11 @@ android {
     namespace 'br.com.wvs.corte'
     compileSdk 34
     defaultConfig {
-        applicationId 'br.com.wvs.corte.ajuste'
+        applicationId 'br.com.wvs.corte.teste'
         minSdk 26
         targetSdk 34
-        versionCode 10
-        versionName '0.10.0-android34'
+        versionCode 11
+        versionName '0.11.0-teste'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
