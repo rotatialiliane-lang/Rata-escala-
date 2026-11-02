@@ -12,6 +12,17 @@ body.focus-cut #productionBody .cutcard{padding:10px;margin:0}
 body.focus-cut #productionBody .mapwrap{max-height:calc(100dvh - 235px);min-height:48vh}
 body.focus-cut #productionBody .sheet-tray{padding:2px 0 5px}
 body.focus-cut #productionBody .focusbar{position:sticky;top:0;background:#f3f7f7;z-index:6;padding:5px 0}
+/* Visualizacao operacional da chapa ocupando toda a area util do tablet. */
+body.focus-cut{overflow:hidden}
+body.focus-cut .container{padding:0!important;margin:0!important;max-width:none!important}
+body.focus-cut #productionBody{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+body.focus-cut #productionBody .focusbar{flex:0 0 auto;position:relative;top:auto;padding:6px 10px;gap:6px}
+body.focus-cut #productionBody .cutcard{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:5px!important;border-radius:0}
+body.focus-cut #productionBody .cutcard #mapView{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+body.focus-cut #productionBody .cutcard #mapWrap{flex:1 1 auto;min-height:0;max-height:none!important;overflow:auto}
+body.focus-cut #productionBody .cutcard #mapWrap svg{display:block}
+body.focus-cut #productionBody .cutcard .sheet-tray{flex:0 0 auto}
+@media (orientation:landscape){body.focus-cut #productionBody .focusbar{padding:3px 8px}body.focus-cut #productionBody .cutcard{padding:2px!important}}
 </style></head><body><header><div class="brandbar"><div><div class="brand">WVS <span>Corte</span> <small style="font-size:12px;color:#99f6e4">TESTE AJUSTE v0.9</small></div><small>Interiores • Gestão da produção</small></div><span class="workmode">Operação offline</span></div></header>
 <div class="topnav"><nav class="inside" aria-label="Menu principal"><button data-tab="clients" class="active">Clientes</button><button data-tab="projects">Projetos</button><button data-tab="production">Produção</button><button data-tab="completed">Concluídos</button><button data-tab="reports">Relatórios</button><button data-tab="settings">Configurações</button></nav></div>
 <main class="container"><div class="notice" id="status" hidden></div>
@@ -230,7 +241,7 @@ function renderProduction(){document.body.classList.toggle('focus-cut',!!V.focus
  for(const [id,step] of [['prevFocusSheet',-1],['nextFocusSheet',1]])$('#'+id).onclick=async()=>{let next=V.sheet+step;if(next<0||next>=p.sheets.length)return;await stopCurrentIfNeeded();V.sheet=next;p.lastSheet=next;await persist();renderProduction();window.scrollTo(0,0)};
  els('[data-sheet]').forEach(b=>b.onclick=async()=>{let next=+b.dataset.sheet;if(next===V.sheet)return;await stopCurrentIfNeeded();V.sheet=next;p.lastSheet=V.sheet;await persist();renderProduction()});
  $('#firstPending').onclick=async()=>{let i=p.sheets.findIndex(s=>!sheetDone(s));if(i<0)return notice('Todas as chapas estão cortadas.','success');await stopCurrentIfNeeded();V.sheet=i;p.lastSheet=i;await persist();renderProduction()};
- if(!locked){if(active)$('#endWork').onclick=async()=>{active.end=stamp();active.lastSeen=active.end;await persist();renderProduction();notice('Corte salvo. Você poderá continuar desta chapa depois.','')};else $('#startWork').onclick=async()=>{let worker=$('#worker').value.trim();if(!worker)return notice('Informe o nome do marceneiro.','warn');p.lastWorker=worker;s.sessions=s.sessions||[];s.sessions.push({worker,start:stamp(),end:null,lastSeen:stamp()});await persist();renderProduction();notice('Corte iniciado. Seu progresso é salvo a cada peça.','')};}
+ if(!locked){if(active)$('#endWork').onclick=async()=>{active.end=stamp();active.lastSeen=active.end;await persist();V.focusCut=false;renderProduction();notice('Corte salvo. Você poderá continuar desta chapa depois.','')};else $('#startWork').onclick=async()=>{let worker=$('#worker').value.trim();if(!worker)return notice('Informe o nome do marceneiro.','warn');p.lastWorker=worker;s.sessions=s.sessions||[];s.sessions.push({worker,start:stamp(),end:null,lastSeen:stamp()});await persist();V.focusCut=true;V.layout='mapa';renderProduction();window.scrollTo(0,0);notice('Corte iniciado em tela ampla. Seu progresso é salvo a cada peça.','')};}
  els('[data-layout]').forEach(b=>b.onclick=()=>{V.layout=b.dataset.layout;renderProduction()});
  const z=$('#zoomSlider'),map=$('#mapWrap'),svg=$('#sheetSVG');
  const setZoom=(value,centerX,centerY)=>{
