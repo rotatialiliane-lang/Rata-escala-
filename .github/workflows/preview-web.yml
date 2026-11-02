@@ -1,0 +1,34 @@
+name: WVS Corte - Previa no navegador
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'wvs-corte-teste.html'
+      - 'wvs-android/app/src/main/assets/index.html'
+      - '.github/workflows/preview-web.yml'
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: wvs-corte-pages
+  cancel-in-progress: true
+jobs:
+  publicar-previa:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar pagina de teste
+        run: |
+          mkdir -p _site
+          cp wvs-android/app/src/main/assets/index.html _site/index.html
+          cp wvs-android/app/src/main/assets/index.html _site/wvs-corte-teste.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
