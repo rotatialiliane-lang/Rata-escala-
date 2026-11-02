@@ -141,22 +141,38 @@ public class MainActivity extends Activity {
         }catch(Exception ex){result(job.id,false,ex.getMessage());}
         finally{try{conn.releaseInterface(inf);}catch(Exception ignored){}conn.close();}
     },"wvs-usb-printer").start();}
-    /** Renderiza PNG da etiqueta em ^GFA hexadecimal (ZPL II, 203 dpi). A linguagem real deve ser validada no modelo recebido. */
+    /**
+     * Renderiza a imagem de etiqueta na pagina fisica de 100x50mm (203dpi).
+     * Recuo de seguranca: cerca de 4mm nas laterais e 2mm em cima/baixo.
+     * Preserva proporcoes do QR code e layout, e explicita uma unica copia.
+     * OBS: pulos de etiquetas ainda exigem calibracao GAP na impressora.
+     */
     private static byte[] labelToZpl(String base64Data,int wmm,int hmm)throws Exception{
         String encoded=base64Data.contains(",")?base64Data.substring(base64Data.indexOf(',')+1):base64Data;
         byte[] bytes=Base64.decode(encoded,Base64.DEFAULT);
         Bitmap raw=BitmapFactory.decodeByteArray(bytes,0,bytes.length);
-        if(raw==null)throw new Exception("Imagem de etiqueta inválida");
-        int width=Math.max(8,Math.min(864,(int)Math.round(wmm*203.0/25.4)));
-        int height=Math.max(8,Math.min(1600,(int)Math.round(hmm*203.0/25.4)));
-        width=((width+7)/8)*8;
-        Bitmap scaled=Bitmap.createScaledBitmap(raw,width,height,true);
-        int row=width/8,total=row*height;
-        StringBuilder zpl=new StringBuilder(total*2+100);
-        zpl.append("^XA\n^PW").append(width).append("\n^LL").append(height)
-           .append("\n^LH0,0\n^FO0,0^GFA,").append(total).append(',').append(total).append(',').append(row).append(',');
+        if(raw==null)throw new Exception("Imagem de etiqueta invalida");
+        final int dpi=203;
+        int labelWidth=Math.max(8,Math.min(864,(int)Math.round(wmm*dpi/25.4)));
+        int labelHeight=Math.max(8,Math.min(1600,(int)Math.round(hmm*dpi/25.4)));
+        labelWidth=((labelWidth+7)/8)*8;
+        int safeX=Math.max(8,(int)Math.round(3*dpi/25.4));
+        int safeY=Math.max(8,(int)Math.round(2*dpi/25.4));
+        int maxW=Math.max(8,labelWidth-safeX*2);
+        int maxH=Math.max(8,labelHeight-safeY*2);
+        double scale=Math.min(maxW/(double)raw.getWidth(),maxH/(double)raw.getHeight());
+        int printWidth=Math.max(8,Math.min(maxW,((int)Math.floor(raw.getWidth()*scale)/8)*8));
+        int printHeight=Math.max(1,Math.min(maxH,(int)Math.round(raw.getHeight()*scale)));
+        int offX=(labelWidth-printWidth)/2;
+        int offY=(labelHeight-printHeight)/2;
+        Bitmap scaled=Bitmap.createScaledBitmap(raw,printWidth,printHeight,true);
+        int row=printWidth/8,total=row*printHeight;
+        StringBuilder zpl=new StringBuilder(total*2+200);
+        zpl.append("^XA\n^PW").append(labelWidth).append("\n^LL").append(labelHeight)
+           .append("\n^LH0,0\n^LS0\n^LT0\n^FO").append(offX).append(',').append(offY)
+           .append("^GFA,").append(total).append(',').append(total).append(',').append(row).append(',');
         final char[] hex="0123456789ABCDEF".toCharArray();
-        for(int y=0;y<height;y++)for(int col=0;col<row;col++){
+        for(int y=0;y<printHeight;y++)for(int col=0;col<row;col++){
             int packed=0;
             for(int bit=0;bit<8;bit++){
                 int px=scaled.getPixel(col*8+bit,y);
@@ -165,7 +181,8 @@ public class MainActivity extends Activity {
             }
             zpl.append(hex[(packed>>>4)&15]).append(hex[packed&15]);
         }
-        zpl.append("^FS\n^XZ\n");raw.recycle();scaled.recycle();
+        zpl.append("^FS\n^PQ1\n^XZ\n");
+        raw.recycle();scaled.recycle();
         return zpl.toString().getBytes(StandardCharsets.US_ASCII);
     }
     public class Bridge{
