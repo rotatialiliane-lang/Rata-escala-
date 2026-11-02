@@ -48,6 +48,6 @@ jobs:
       - name: Disponibilizar instalador
         uses: actions/upload-artifact@v4
         with:
-          name: WVS-Corte-Ajuste-Impressao-v09
+          name: WVS-Corte-Teste-Separado-v11
           path: wvs-android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
