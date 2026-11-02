@@ -113,14 +113,54 @@ window.WVS_WEBUSB={connectPrinter,directPrint};
 </script><script>const $=s=>document.querySelector(s), els=s=>[...document.querySelectorAll(s)];
 const V={db:null,projects:[],selected:null,sheet:0,view:'clients',busy:false,zoom:1,layout:'mapa',pieceFilter:'all',focusCut:false,lastProjectSearch:''};
 // Remove apenas diagonais extensas de artefatos vetoriais do PDF (sem alterar cotas ou geometria das pecas).
+// Exibicao limpa: elimina apenas linhas repetidas da malha do PDF; mantem contornos e cotas.
 function cleanPdfPaths(paths,w,h){
- return (paths||[]).filter(path=>{
-  if(!Array.isArray(path)||path.length<2)return true;
+ const segments=[];
+ (paths||[]).forEach((path,pi)=>{
+  if(!Array.isArray(path)||path.length<2)return;
   for(let i=1;i<path.length;i++){
    const a=path[i-1],b=path[i],dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);
-   if(dx>Math.max(80,w*.30)&&dy>Math.max(50,h*.25))return false;
+   if(dx>Math.max(80,w*.30)&&dy>Math.max(50,h*.25))continue;
+   const axis=dx<.35&&dy>2?'v':dy<.35&&dx>2?'h':null;
+   segments.push({pi,i,a,b,axis,pos:axis==='v'?(a.x+b.x)/2:axis==='h'?(a.y+b.y)/2:0,len:Math.max(dx,dy)});
   }
-  return true;
+ });
+ const remove=new Set();
+ for(const axis of ['v','h']){
+  const dimension=axis==='v'?h:w;
+  const long=segments.filter(q=>q.axis===axis&&q.len>dimension*.45).sort((a,b)=>a.pos-b.pos);
+  if(long.length<9)continue;
+  // Malhas de 10mm/20mm geram linhas quase equidistantes; preservar linhas isoladas.
+  const groups=[];
+  for(const seg of long){
+   const last=groups[groups.length-1];
+   if(last&&Math.abs(last.pos-seg.pos)<.6)last.items.push(seg);
+   else groups.push({pos:seg.pos,items:[seg]});
+  }
+  if(groups.length<9)continue;
+  const diffs=groups.slice(1).map((g,i)=>g.pos-groups[i].pos).filter(d=>d>1);
+  const bins=new Map();
+  diffs.forEach(d=>{const k=Math.round(d*2)/2;bins.set(k,(bins.get(k)||0)+1)});
+  const common=[...bins].sort((a,b)=>b[1]-a[1])[0];
+  if(!common||common[1]<6||common[1]<diffs.length*.35)continue;
+  const step=common[0];
+  for(let i=1;i<groups.length-1;i++){
+   const left=groups[i].pos-groups[i-1].pos,right=groups[i+1].pos-groups[i].pos;
+   if(Math.abs(left-step)<Math.max(1,step*.15)&&Math.abs(right-step)<Math.max(1,step*.15))
+    groups[i].items.forEach(q=>remove.add(q.pi+':'+q.i));
+  }
+ }
+ return (paths||[]).flatMap((path,pi)=>{
+  if(!Array.isArray(path)||path.length<2)return [];
+  const out=[];let run=null;
+  for(let i=1;i<path.length;i++){
+   if(remove.has(pi+':'+i)){if(run?.length>1)out.push(run);run=null;continue}
+   const a=path[i-1],b=path[i],dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);
+   if(dx>Math.max(80,w*.30)&&dy>Math.max(50,h*.25)){if(run?.length>1)out.push(run);run=null;continue}
+   if(!run)run=[a,b];else if(run[run.length-1]===a)run.push(b);else{if(run.length>1)out.push(run);run=[a,b]}
+  }
+  if(run?.length>1)out.push(run);
+  return out;
  });
 }
 const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
