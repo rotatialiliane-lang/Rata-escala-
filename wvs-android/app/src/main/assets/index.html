@@ -139,12 +139,17 @@ function sheetLeftoverBackground(s){
  return `<rect x="0" y="0" width="${s.width}" height="${s.height}" fill="#fff1c9" pointer-events="none"/><rect x=".5" y=".5" width="${Math.max(0,s.width-1)}" height="${Math.max(0,s.height-1)}" fill="none" stroke="#34454b" stroke-width="1" pointer-events="none"/>`;
 }
 function sheetPieceReference(r,s){
+ // Referencia associada a etiqueta; nomes e cotas somente quando identificados no PDF.
  const cx=r.x+r.w/2,cy=r.y+r.h/2;
- const size=Math.max(3,Math.min(9,r.w/7,r.h/3));
- const nearby=(s.originalTexts||[]).filter(t=>t.x>=r.x-2&&t.x<=r.x+r.w+2&&t.y>=r.y-2&&t.y<=r.y+r.h+2&&/\d/.test(t.text)).slice(0,2);
- const dimensions=nearby.map(t=>String(t.text).trim()).filter(Boolean).join(' · ');
- const line2=dimensions&&r.h>size*3.3?'<text x="'+cx+'" y="'+(cy+size*.85)+'" font-size="'+(size*.70)+'" text-anchor="middle" fill="#33444b" pointer-events="none">'+safe(dimensions.slice(0,48))+'</text>':'';
- return '<g pointer-events="none"><text x="'+cx+'" y="'+(cy-(line2?size*.35:0))+'" font-size="'+size+'" font-weight="700" text-anchor="middle" fill="#203840" stroke="#ffffff" stroke-width="'+(size*.16)+'" paint-order="stroke" dominant-baseline="middle">#'+safe(r.id)+'</text>'+line2+'</g>';
+ const font=Math.max(2.5,Math.min(8,r.w/9,r.h/5));
+ const inside=(s.originalTexts||[]).filter(t=>t.x>=r.x-1&&t.x<=r.x+r.w+1&&t.y>=r.y-1&&t.y<=r.y+r.h+1).map(t=>String(t.text||'').trim()).filter(Boolean);
+ const name=inside.find(t=>/[A-Za-zÀ-ÿ]{3}/.test(t)&&!/^#?\d+$/.test(t));
+ const texts=['#'+r.id,...(name?[name]:[])];
+ let out='<g pointer-events="none">';
+ texts.forEach((t,i)=>{out+='<text x="'+cx+'" y="'+(cy+(i-(texts.length-1)/2)*font*1.2)+'" text-anchor="middle" dominant-baseline="middle" font-size="'+(i===0?font:font*.75)+'" font-weight="'+(i===0?700:500)+'" fill="#203840" stroke="#ffffff" stroke-width="'+font*.12+'" paint-order="stroke">'+safe(t.slice(0,32))+'</text>';});
+ // Mantem cotas originais do PDF no lugar em que foram extraidas.
+ // Nao usa r.w/r.h como milimetros: essas dimensoes podem estar em coordenadas PDF.
+ return out+'</g>';
 }
 function sheetPieceColor(r,i){
  const palette=['#e2e8f4','#e5f1d4','#e0f4ed','#f9e7e8','#fff0c9','#e8ebef','#f0e8f6'];
