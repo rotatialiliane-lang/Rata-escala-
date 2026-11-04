@@ -134,9 +134,17 @@ public class MainActivity extends Activity {
             if(!conn.claimInterface(inf,true))throw new Exception("Interface USB ocupada");
             byte[] zpl=labelToZpl(job.base64,job.wmm,job.hmm);
             int position=0;
-            while(position<zpl.length){int amount=Math.min(1024,zpl.length-position);
-                int sent=conn.bulkTransfer(end,zpl,position,amount,5000);
-                if(sent<=0)throw new Exception("Falha USB (retorno "+sent+", "+position+"/"+zpl.length+" bytes, interface "+inf.getId()+", endpoint "+end.getAddress()+"). Verifique cabo OTG, permissao e protocolo ZPL.");
+            // Pacotes menores evitam falhas em controladores USB OTG sensiveis.
+            // Em erro, nao reenviar bytes ja confirmados para evitar etiqueta duplicada.
+            while(position<zpl.length){
+                int amount=Math.min(256,zpl.length-position);
+                int sent=-1;
+                for(int attempt=0;attempt<3;attempt++){
+                    sent=conn.bulkTransfer(end,zpl,position,amount,7000);
+                    if(sent>0)break;
+                    try{Thread.sleep(120L*(attempt+1));}catch(InterruptedException ex){Thread.currentThread().interrupt();break;}
+                }
+                if(sent<=0)throw new Exception("Falha USB (retorno "+sent+", "+position+"/"+zpl.length+" bytes, interface "+inf.getId()+", endpoint "+end.getAddress()+", pacote "+amount+", maxPacket "+end.getMaxPacketSize()+"). Confira USB OTG e modo ZPL da impressora.");
                 position+=sent;
             }
             result(job.id,true,"Transferência USB concluída ("+position+" bytes). Confira saída física e QR Code.");
